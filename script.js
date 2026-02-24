@@ -262,3 +262,31 @@ function downloadExcel() {
 
   XLSX.writeFile(workbook, "court_register.xlsx");
 }
+// =======================
+// SHOW PENDING FILES
+// =======================
+function showPending() {
+
+  if (!currentData || currentData.length === 0) {
+    alert("No data loaded");
+    return;
+  }
+
+  const pending = [];
+  pending.push(currentData[0]); // header
+
+  for (let i = 1; i < currentData.length; i++) {
+    if (currentData[i][5] === "SENT" && currentData[i][6] !== "RECEIVED") {
+      pending.push(currentData[i]);
+    }
+  }
+
+  showPreview(pending);
+}
+
+// =======================
+// SHOW ALL FILES
+// =======================
+function showAll() {
+  showPreview(currentData);
+}
