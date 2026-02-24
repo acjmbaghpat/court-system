@@ -1,4 +1,9 @@
 let currentData = [];
+// 🚫 Prevent overwrite if data already exists
+if (currentData && currentData.length > 0) {
+  alert("Data already loaded / scanned.\nDobara upload se pehle data clear ya unlock karo.");
+  return;
+}
 const UPLOAD_LOCK_KEY = "court_upload_locked";
 const UPLOAD_PASSWORD = "1234"; // apna password yahan rakho
 // =======================
@@ -383,19 +388,7 @@ window.onload = function () {
 };
 // =======================
 // UNLOCK UPLOAD
-// =======================
-function unlockUpload() {
 
-  const pwd = prompt("Upload unlock password dalo");
-
-  if (pwd === UPLOAD_PASSWORD) {
-    document.getElementById("uploadBtn").disabled = false;
-    document.getElementById("uploadBtn").innerText = "Upload Excel";
-    alert("Upload unlocked");
-  } else {
-    alert("Wrong password");
-  }
-}
 function unlockUpload() {
 
   const pwd = prompt("Upload unlock password dalo");
