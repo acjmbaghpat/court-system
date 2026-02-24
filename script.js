@@ -1,15 +1,7 @@
-alert("script.js loaded");
-function uploadExcel() {
-  alert("Upload button clicked");
-}
-
-function startSendScan() {
-  alert("Scan button clicked");
-}
 let currentData = [];
 
 // =======================
-// EXCEL UPLOAD FUNCTION
+// EXCEL UPLOAD
 // =======================
 function uploadExcel() {
 
@@ -29,12 +21,12 @@ function uploadExcel() {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    if (rows[0].length < 5) {
-      alert("Excel must have 5 columns");
+    if (!rows || rows.length < 2) {
+      alert("Excel file empty or invalid");
       return;
     }
 
-    // Add system headers
+    // Add system columns
     rows[0] = [
       "Sr No",
       "Case No",
@@ -58,7 +50,7 @@ function uploadExcel() {
       rows[i][10] = "";
     }
 
-    currentData = rows;   // VERY IMPORTANT
+    currentData = rows;
 
     showPreview(currentData);
 
@@ -70,7 +62,7 @@ function uploadExcel() {
 
 
 // =======================
-// SHOW PREVIEW
+// SHOW TABLE
 // =======================
 function showPreview(rows) {
 
@@ -99,7 +91,7 @@ function showPreview(rows) {
 
 
 // =======================
-// SCAN SEND
+// SCAN FILE (SEND)
 // =======================
 function startSendScan() {
 
