@@ -72,7 +72,11 @@ function startSendScan() {
     return;
   }
 
-  const data = JSON.parse(localStorage.getItem("date_" + date));
+ const data = window.currentDateData;
+  if (!data) {
+  alert("Please select date again");
+  return;
+}
   if (!data) {
     alert("No data for selected date");
     return;
