@@ -19,9 +19,28 @@ function uploadExcel() {
 
   const fileInput = document.getElementById("excelFile");
 
-  if (!fileInput.files.length) {
-    alert("Select Excel file first");
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    alert("Please select an Excel file");
     return;
+  }
+
+  // 🛑 Agar pehle se data hai aur SENT/RECEIVED hua hai → block
+  if (currentData && currentData.length > 1) {
+
+    // check agar koi SENT ya RECEIVED hai
+    for (let i = 1; i < currentData.length; i++) {
+      if (
+        currentData[i][5] === "SENT" ||
+        currentData[i][6] === "RECEIVED"
+      ) {
+        alert(
+          "⚠️ Files already scanned.\n" +
+          "Excel dobara upload karne se data udd jayega.\n\n" +
+          "Pehle 'Clear Today Data' karo."
+        );
+        return;
+      }
+    }
   }
 
   const reader = new FileReader();
@@ -34,11 +53,11 @@ function uploadExcel() {
     let rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
     if (!rows || rows.length < 2) {
-      alert("Excel file empty or invalid");
+      alert("Excel empty ya galat hai");
       return;
     }
 
-    // Add system columns
+    // Header fix
     rows[0] = [
       "Sr No",
       "Case No",
@@ -53,26 +72,28 @@ function uploadExcel() {
       "REMARKS"
     ];
 
+    // System columns init
     for (let i = 1; i < rows.length; i++) {
-      rows[i][5] = "";
-      rows[i][6] = "";
-      rows[i][7] = "";
-      rows[i][8] = "";
-      rows[i][9] = "";
-      rows[i][10] = "";
+      rows[i][5] = rows[i][5] || "";
+      rows[i][6] = rows[i][6] || "";
+      rows[i][7] = rows[i][7] || "";
+      rows[i][8] = rows[i][8] || "";
+      rows[i][9] = rows[i][9] || "";
+      rows[i][10] = rows[i][10] || "";
     }
 
     currentData = rows;
+
+    // 💾 SAVE
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
 
     showPreview(currentData);
 
     alert("Excel uploaded successfully");
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
 
   reader.readAsArrayBuffer(fileInput.files[0]);
-}
-// 🔒 Lock upload after success
+}// 🔒 Lock upload after success
 localStorage.setItem(UPLOAD_LOCK_KEY, "true");
 document.getElementById("uploadBtn").disabled = true;
 
@@ -423,3 +444,18 @@ window.addEventListener("load", function () {
     if (btn) btn.disabled = true;
   }
 });
+function clearAllData() {
+
+  const ok = confirm(
+    "⚠️ Aaj ka poora data delete ho jayega.\n" +
+    "SENT / RECEIVED sab hat jayega.\n\nConfirm?"
+  );
+
+  if (!ok) return;
+
+  currentData = [];
+  localStorage.removeItem(STORAGE_KEY);
+
+  showPreview([]);
+  alert("Data cleared. Ab naya Excel upload kar sakte ho.");
+}
