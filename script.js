@@ -130,3 +130,17 @@ document.getElementById("workDate").addEventListener("change", function () {
   }
 
 });
+// AUTO LOAD DATA WHEN DATE IS SELECTED
+document.getElementById("workDate").addEventListener("change", function () {
+
+  const date = this.value;
+  const savedData = localStorage.getItem("date_" + date);
+
+  if (!savedData) {
+    alert("Is date ke liye koi Excel upload nahi hai");
+    return;
+  }
+
+  window.currentDateData = JSON.parse(savedData);
+  showPreview(window.currentDateData);
+});
