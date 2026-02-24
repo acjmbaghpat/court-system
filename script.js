@@ -64,3 +64,52 @@ function showPreview(rows) {
     `;
   }
 }
+function startSendScan() {
+
+  const date = document.getElementById("workDate").value;
+  if (!date) {
+    alert("Select date first");
+    return;
+  }
+
+  const data = JSON.parse(localStorage.getItem("date_" + date));
+  if (!data) {
+    alert("No data for selected date");
+    return;
+  }
+
+  const scannerDiv = document.getElementById("scanner");
+  scannerDiv.innerHTML = "";
+
+  const html5QrCode = new Html5Qrcode("scanner");
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+
+    (decodedText) => {
+
+      let found = false;
+
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][1]).trim() === decodedText.trim()) {
+
+          data[i][5] = "SENT"; // SENT column
+          localStorage.setItem("date_" + date, JSON.stringify(data));
+          showPreview(data);
+
+          alert("FILE SENT");
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        alert("ERROR: File not in today's list");
+      }
+
+      html5QrCode.stop();
+      scannerDiv.innerHTML = "";
+    }
+  );
+}
