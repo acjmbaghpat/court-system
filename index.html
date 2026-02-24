@@ -3,13 +3,12 @@
 <head>
   <title>Court File Register</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
-    body { font-family: Arial; padding: 10px; background:#f4f6f9; }
-    button, input { padding:8px; margin:5px 0; width:100%; }
+    body { font-family: Arial; padding:10px; background:#f4f6f9; }
+    input, button { width:100%; padding:8px; margin:5px 0; }
     button { background:#2d6cdf; color:white; border:none; }
     table { width:100%; border-collapse:collapse; background:white; margin-top:10px; }
-    th, td { border:1px solid #ccc; padding:5px; text-align:center; font-size:13px; }
+    th, td { border:1px solid #ccc; padding:5px; font-size:13px; text-align:center; }
     th { background:#e8eef8; }
   </style>
 </head>
@@ -18,12 +17,15 @@
 
 <h3>Court File Register</h3>
 
+<!-- EXCEL UPLOAD -->
 <input type="file" id="excelFile" accept=".xls,.xlsx">
 <button onclick="uploadExcel()">Upload Excel</button>
 
+<!-- SCAN -->
 <button onclick="startSendScan()">Scan File (SEND)</button>
 <button onclick="startReceiveScan()">Scan File (RECEIVE)</button>
 
+<!-- SEARCH -->
 <input
   type="text"
   id="searchInput"
@@ -31,6 +33,7 @@
   oninput="searchData()"
 >
 
+<!-- ACTIONS -->
 <button onclick="showPending()">Show Pending Files</button>
 <button onclick="showAll()">Show All Files</button>
 <button onclick="downloadExcel()">Download Excel</button>
