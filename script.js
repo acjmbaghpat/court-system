@@ -208,14 +208,40 @@ function startReceiveScan() {
 // =======================
 // NEXT DATE INPUT
 // =======================
+let currentRowForNextDate = null;
+
+// Show calendar box
 function askNextDate(rowIndex) {
 
-  let nextDate = prompt(
-    "Next Date enter karo (calendar ya manually)\nExample: 22/3/2026"
-  );
+  currentRowForNextDate = rowIndex;
 
-  if (nextDate) {
-    currentData[rowIndex][7] = nextDate;
-    showPreview(currentData);
+  document.getElementById("calendarDate").value = "";
+  document.getElementById("manualDate").value = "";
+
+  document.getElementById("nextDateBox").style.display = "block";
+}
+
+// Save next date
+function saveNextDate() {
+
+  if (currentRowForNextDate === null) return;
+
+  const calendarValue = document.getElementById("calendarDate").value;
+  const manualValue = document.getElementById("manualDate").value;
+
+  const finalDate = calendarValue || manualValue;
+
+  if (!finalDate) {
+    alert("Next date enter karo");
+    return;
   }
+
+  currentData[currentRowForNextDate][7] = finalDate;
+
+  showPreview(currentData);
+
+  document.getElementById("nextDateBox").style.display = "none";
+  currentRowForNextDate = null;
+
+  alert("Next Date Saved");
 }
