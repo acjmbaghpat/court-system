@@ -128,3 +128,18 @@
   placeholder="Search Case No / Party / Section / PS"
   oninput="searchData()"
 />
+function clearAllData() {
+
+  const ok = confirm(
+    "⚠️ Aaj ka poora data delete ho jayega.\n" +
+    "SENT / RECEIVED sab hat jayega.\n\nConfirm?"
+  );
+
+  if (!ok) return;
+
+  currentData = [];
+  localStorage.removeItem(STORAGE_KEY);
+
+  showPreview([]);
+  alert("Data cleared. Ab naya Excel upload kar sakte ho.");
+}
