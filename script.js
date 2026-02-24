@@ -1,4 +1,11 @@
 alert("script.js loaded");
+function uploadExcel() {
+  alert("Upload button clicked");
+}
+
+function startSendScan() {
+  alert("Scan button clicked");
+}
 let currentData = [];
 
 // =======================
