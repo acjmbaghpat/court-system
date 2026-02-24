@@ -138,3 +138,84 @@ function startSendScan() {
     }
   );
 }
+// =======================
+// SCAN FILE (RECEIVE)
+// =======================
+function startReceiveScan() {
+
+  if (!currentData || currentData.length === 0) {
+    alert("Pehle Excel upload kro");
+    return;
+  }
+
+  const scannerDiv = document.getElementById("scanner");
+  scannerDiv.innerHTML = "";
+
+  const html5QrCode = new Html5Qrcode("scanner");
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+
+    (decodedText) => {
+
+      let found = false;
+
+      for (let i = 1; i < currentData.length; i++) {
+
+        // Case No match
+        if (
+          String(currentData[i][1]).trim().toUpperCase() ===
+          decodedText.trim().toUpperCase()
+        ) {
+
+          // Check SENT
+          if (currentData[i][5] !== "SENT") {
+            alert("ERROR: File SENT nahi hai");
+            html5QrCode.stop();
+            scannerDiv.innerHTML = "";
+            return;
+          }
+
+          // Mark RECEIVED
+          currentData[i][6] = "RECEIVED";
+
+          const now = new Date();
+          currentData[i][8] = now.toLocaleDateString();
+          currentData[i][9] = now.toLocaleTimeString();
+
+          showPreview(currentData);
+
+          alert("FILE RECEIVED");
+
+          // NEXT DATE input
+          askNextDate(i);
+
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        alert("ERROR: File list me nahi hai");
+      }
+
+      html5QrCode.stop();
+      scannerDiv.innerHTML = "";
+    }
+  );
+}
+// =======================
+// NEXT DATE INPUT
+// =======================
+function askNextDate(rowIndex) {
+
+  let nextDate = prompt(
+    "Next Date enter karo (calendar ya manually)\nExample: 22/3/2026"
+  );
+
+  if (nextDate) {
+    currentData[rowIndex][7] = nextDate;
+    showPreview(currentData);
+  }
+}
