@@ -1,4 +1,4 @@
-let currentData = null;
+let currentData = [];
 function uploadExcel() {
 
   const date = document.getElementById("workDate").value;
@@ -68,19 +68,8 @@ function showPreview(rows) {
 }
 function startSendScan() {
 
-  const date = document.getElementById("workDate").value;
-  if (!date) {
-    alert("Select date first");
-    return;
-  }
-
- const data = window.currentDateData;
-  if (!data) {
-  alert("Please select date again");
-  return;
-}
-  if (!data) {
-    alert("No data for selected date");
+  if (!currentData || currentData.length === 0) {
+    alert("Pehle Excel upload kro");
     return;
   }
 
@@ -97,12 +86,14 @@ function startSendScan() {
 
       let found = false;
 
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][1]).trim() === decodedText.trim()) {
+      for (let i = 1; i < currentData.length; i++) {
+        if (
+          String(currentData[i][1]).trim().toUpperCase() ===
+          decodedText.trim().toUpperCase()
+        ) {
 
-          data[i][5] = "SENT"; // SENT column
-          localStorage.setItem("date_" + date, JSON.stringify(data));
-          showPreview(data);
+          currentData[i][5] = "SENT";   // SENT column
+          showPreview(currentData);
 
           alert("FILE SENT");
           found = true;
@@ -111,7 +102,7 @@ function startSendScan() {
       }
 
       if (!found) {
-        alert("ERROR: File not in today's list");
+        alert("ERROR: File not in uploaded list");
       }
 
       html5QrCode.stop();
