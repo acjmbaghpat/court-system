@@ -1,6 +1,6 @@
 let currentData = [];
-const STORAGE_KEY = "court_register_data";
-const UPLOAD_PASSWORD = "1234"; // 🔐 yahan apna password set karo
+const UPLOAD_LOCK_KEY = "court_upload_locked";
+const UPLOAD_PASSWORD = "1234"; // apna password yahan rakho
 // =======================
 // EXCEL UPLOAD
 // =======================
@@ -61,9 +61,9 @@ function uploadExcel() {
 
   reader.readAsArrayBuffer(fileInput.files[0]);
 }
-// Lock upload after first upload
+// 🔒 Lock upload after success
+localStorage.setItem(UPLOAD_LOCK_KEY, "true");
 document.getElementById("uploadBtn").disabled = true;
-document.getElementById("uploadBtn").innerText = "Upload Locked";
 
 // =======================
 // SHOW TABLE
@@ -396,3 +396,24 @@ function unlockUpload() {
     alert("Wrong password");
   }
 }
+function unlockUpload() {
+
+  const pwd = prompt("Upload unlock password dalo");
+
+  if (pwd === UPLOAD_PASSWORD) {
+    localStorage.removeItem(UPLOAD_LOCK_KEY);
+    document.getElementById("uploadBtn").disabled = false;
+    alert("Upload unlocked");
+  } else {
+    alert("Wrong password");
+  }
+}
+window.addEventListener("load", function () {
+
+  const locked = localStorage.getItem(UPLOAD_LOCK_KEY);
+
+  if (locked === "true") {
+    const btn = document.getElementById("uploadBtn");
+    if (btn) btn.disabled = true;
+  }
+});
