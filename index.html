@@ -64,10 +64,13 @@
 <label>Upload Excel File</label>
 <input type="file" id="excelFile" accept=".xls,.xlsx">
 
-<button onclick="uploadExcel()">Upload Excel</button>
+<button id="uploadBtn" onclick="uploadExcel()">Upload Excel</button>
 
 <hr>
-
+<!-- Upload Lock Section -->
+<div style="margin-top:10px;">
+  <button onclick="unlockUpload()">Unlock Upload</button>
+</div>
 <!-- SCAN BUTTON -->
 <button onclick="startSendScan()">Scan File (SEND)</button>
 <div id="scanner"></div>
