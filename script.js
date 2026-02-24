@@ -113,3 +113,20 @@ function startSendScan() {
     }
   );
 }
+document.getElementById("workDate").addEventListener("change", function () {
+
+  const date = this.value;
+  const saved = localStorage.getItem("date_" + date);
+
+  if (saved) {
+    const data = JSON.parse(saved);
+    showPreview(data);
+    document.getElementById("msg").innerText =
+      "Loaded saved data for " + date;
+  } else {
+    document.getElementById("preview").innerHTML = "";
+    document.getElementById("msg").innerText =
+      "No data saved for this date";
+  }
+
+});
