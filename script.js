@@ -1,7 +1,13 @@
 let currentData = [];
-// 🚫 Prevent overwrite if data already exists
-if (currentData && currentData.length > 0) {
-  alert("Data already loaded / scanned.\nDobara upload se pehle data clear ya unlock karo.");
+let hasScanned = false; // 🔑 NEW FLAG
+const STORAGE_KEY = "court_register_data";
+// 🚫 Block upload ONLY if scanning already started
+if (hasScanned) {
+  alert(
+    "⚠️ Files scan ho chuki hain.\n" +
+    "Excel dobara upload karne se data udd jayega.\n\n" +
+    "Pehle 'Clear Today Data' karo."
+  );
   return;
 }
 const UPLOAD_LOCK_KEY = "court_upload_locked";
@@ -130,6 +136,8 @@ function startSendScan() {
         ) {
 
           currentData[i][5] = "SENT";
+          hasScanned = true;
+localStorage.setItem("hasScanned", "true");
           showPreview(currentData);
 
           alert("FILE SENT");
@@ -189,7 +197,8 @@ function startReceiveScan() {
 
           // Mark RECEIVED
           currentData[i][6] = "RECEIVED";
-
+hasScanned = true;
+localStorage.setItem("hasScanned", "true");
           const now = new Date();
           currentData[i][8] = now.toLocaleDateString();
           currentData[i][9] = now.toLocaleTimeString();
@@ -379,11 +388,15 @@ function searchData() {
   showPreview(filtered);
 }
 window.onload = function () {
+
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     currentData = JSON.parse(saved);
     showPreview(currentData);
   }
+
+  hasScanned = localStorage.getItem("hasScanned") === "true";
+};  }
   document.getElementById("uploadBtn").disabled = currentData.length > 0;
 };
 // =======================
