@@ -1,145 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Court File System</title>
+  <title>Court File Register</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 15px;
-      background: #f4f6f9;
-    }
-
-    h2 {
-      text-align: center;
-    }
-
-    input, button {
-      padding: 8px;
-      margin: 6px 0;
-      width: 100%;
-    }
-
-    button {
-      background: #2d6cdf;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    table {
-      margin-top: 15px;
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-    }
-
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px;
-      text-align: center;
-      font-size: 14px;
-    }
-
-    th {
-      background: #e8eef8;
-    }
-
-    #scanner {
-      margin-top: 10px;
-    }
+    body { font-family: Arial; padding: 10px; background:#f4f6f9; }
+    button, input { padding:8px; margin:5px 0; width:100%; }
+    button { background:#2d6cdf; color:white; border:none; }
+    table { width:100%; border-collapse:collapse; background:white; margin-top:10px; }
+    th, td { border:1px solid #ccc; padding:5px; text-align:center; font-size:13px; }
+    th { background:#e8eef8; }
   </style>
 </head>
 
 <body>
 
-<h2>Court File Register</h2>
+<h3>Court File Register</h3>
 
-<!-- DATE (for record only) -->
-<label>Select Date</label>
-<input type="date" id="workDate">
-
-<!-- EXCEL UPLOAD -->
-<label>Upload Excel File</label>
 <input type="file" id="excelFile" accept=".xls,.xlsx">
-<button id="uploadBtn" onclick="uploadExcel()">Upload Excel</button>
-<button onclick="unlockUpload()">Unlock Upload</button>
-<hr>
-<!-- Upload Lock Section -->
-<div style="margin-top:10px;">
-  <button onclick="unlockUpload()">Unlock Upload</button>
-</div>
-<!-- SCAN BUTTON -->
+<button onclick="uploadExcel()">Upload Excel</button>
+
 <button onclick="startSendScan()">Scan File (SEND)</button>
+<button onclick="startReceiveScan()">Scan File (RECEIVE)</button>
+
+<input
+  type="text"
+  id="searchInput"
+  placeholder="Search Case / Party / Section / PS"
+  oninput="searchData()"
+>
+
+<button onclick="showPending()">Show Pending Files</button>
+<button onclick="showAll()">Show All Files</button>
+<button onclick="downloadExcel()">Download Excel</button>
+<button onclick="clearAllData()">Clear All Data</button>
+
 <div id="scanner"></div>
 
-<!-- TABLE -->
 <table>
-  <thead>
-    <tr>
-      <th>Sr No</th>
-      <th>Case No</th>
-      <th>Party Name</th>
-      <th>U/S</th>
-      <th>PS</th>
-      <th>SENT</th>
-      <th>RECEIVED</th>
-      <th>NEXT DATE</th>
-      <th>RECEIVED DATE</th>
-      <th>RECEIVED TIME</th>
-      <th>REMARKS</th>
-    </tr>
-  </thead>
-  <tbody id="preview"></tbody>
+<thead>
+<tr>
+  <th>Sr</th><th>Case No</th><th>Party</th><th>U/S</th><th>PS</th>
+  <th>SENT</th><th>RECEIVED</th><th>NEXT DATE</th>
+  <th>R-Date</th><th>R-Time</th><th>Remarks</th>
+</tr>
+</thead>
+<tbody id="preview"></tbody>
 </table>
 
-<!-- LIBRARIES -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
-
-<!-- MAIN SCRIPT -->
 <script src="script.js"></script>
 
 </body>
 </html>
-<button onclick="startReceiveScan()">Scan File (RECEIVE)</button>
-<div id="nextDateBox" style="display:none; margin-top:15px; padding:10px; border:1px solid #ccc; background:#fff;">
-  <h4>Enter Next Date</h4>
-  
-  <!-- Calendar -->
-  <input type="date" id="calendarDate">
-  
-  <br><br>
-  
-  <!-- Manual entry -->
-  <input type="text" id="manualDate" placeholder="Or type manually (22/3/26)">
-  
-  <br><br>
-  
-  <button onclick="saveNextDate()">Save Next Date</button>
-</div>
-<button onclick="downloadExcel()">Download Excel</button>
-<button onclick="showPending()">Show Pending Files</button>
-<button onclick="showAll()">Show All Files</button>
-<input
-  type="text"
-  id="searchInput"
-  placeholder="Search Case No / Party / Section / PS"
-  oninput="searchData()"
-/>
-function clearAllData() {
-
-  const ok = confirm(
-    "⚠️ Aaj ka poora data delete ho jayega.\n" +
-    "SENT / RECEIVED sab hat jayega.\n\nConfirm?"
-  );
-
-  if (!ok) return;
-
-  currentData = [];
-  localStorage.removeItem(STORAGE_KEY);
-
-  showPreview([]);
-  alert("Data cleared. Ab naya Excel upload kar sakte ho.");
-}
