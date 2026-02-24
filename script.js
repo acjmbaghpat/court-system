@@ -1,6 +1,6 @@
 let currentData = [];
 const STORAGE_KEY = "court_register_data";
-
+const UPLOAD_PASSWORD = "1234"; // 🔐 yahan apna password set karo
 // =======================
 // EXCEL UPLOAD
 // =======================
@@ -61,7 +61,9 @@ function uploadExcel() {
 
   reader.readAsArrayBuffer(fileInput.files[0]);
 }
-
+// Lock upload after first upload
+document.getElementById("uploadBtn").disabled = true;
+document.getElementById("uploadBtn").innerText = "Upload Locked";
 
 // =======================
 // SHOW TABLE
@@ -377,4 +379,20 @@ window.onload = function () {
     currentData = JSON.parse(saved);
     showPreview(currentData);
   }
+  document.getElementById("uploadBtn").disabled = currentData.length > 0;
 };
+// =======================
+// UNLOCK UPLOAD
+// =======================
+function unlockUpload() {
+
+  const pwd = prompt("Upload unlock password dalo");
+
+  if (pwd === UPLOAD_PASSWORD) {
+    document.getElementById("uploadBtn").disabled = false;
+    document.getElementById("uploadBtn").innerText = "Upload Excel";
+    alert("Upload unlocked");
+  } else {
+    alert("Wrong password");
+  }
+}
