@@ -248,6 +248,9 @@ function saveNextDate() {
 // =======================
 // DOWNLOAD EXCEL
 // =======================
+// =======================
+// OPTION 1 : DOWNLOAD EXCEL (FINAL)
+// =======================
 function downloadExcel() {
 
   if (!currentData || currentData.length === 0) {
@@ -255,15 +258,33 @@ function downloadExcel() {
     return;
   }
 
-  const worksheet = XLSX.utils.aoa_to_sheet(currentData);
-  const workbook = XLSX.utils.book_new();
+  // Clean copy (remove HTML inputs)
+  const cleanData = [];
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Court Register");
+  for (let i = 0; i < currentData.length; i++) {
+    cleanData.push([
+      currentData[i][0] || "",
+      currentData[i][1] || "",
+      currentData[i][2] || "",
+      currentData[i][3] || "",
+      currentData[i][4] || "",
+      currentData[i][5] || "",
+      currentData[i][6] || "",
+      currentData[i][7] || "",
+      currentData[i][8] || "",
+      currentData[i][9] || "",
+      currentData[i][10] || ""
+    ]);
+  }
 
-  XLSX.writeFile(workbook, "court_register.xlsx");
+  const ws = XLSX.utils.aoa_to_sheet(cleanData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Court Register");
+
+  XLSX.writeFile(wb, "court_register.xlsx");
 }
 // =======================
-// SHOW PENDING FILES
+// OPTION 2 : SHOW PENDING FILES (FINAL)
 // =======================
 function showPending() {
 
@@ -276,7 +297,10 @@ function showPending() {
   pending.push(currentData[0]); // header
 
   for (let i = 1; i < currentData.length; i++) {
-    if (currentData[i][5] === "SENT" && currentData[i][6] !== "RECEIVED") {
+    if (
+      currentData[i][5] === "SENT" &&
+      currentData[i][6] !== "RECEIVED"
+    ) {
       pending.push(currentData[i]);
     }
   }
@@ -284,9 +308,6 @@ function showPending() {
   showPreview(pending);
 }
 
-// =======================
-// SHOW ALL FILES
-// =======================
 function showAll() {
   showPreview(currentData);
 }
