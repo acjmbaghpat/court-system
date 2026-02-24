@@ -1,46 +1,103 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Court System</title>
+  <title>Court File System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      background: #f4f6f9;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    input, button {
+      padding: 8px;
+      margin: 6px 0;
+      width: 100%;
+    }
+
+    button {
+      background: #2d6cdf;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    table {
+      margin-top: 15px;
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    th {
+      background: #e8eef8;
+    }
+
+    #scanner {
+      margin-top: 10px;
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>Court File Upload</h2>
+<h2>Court File Register</h2>
 
-<label>Select Date:</label><br>
-<input type="date" id="workDate"><br><br>
+<!-- DATE (for record only) -->
+<label>Select Date</label>
+<input type="date" id="workDate">
 
-<label>Upload Excel:</label><br>
-<input type="file" id="excelFile"><br><br>
+<!-- EXCEL UPLOAD -->
+<label>Upload Excel File</label>
+<input type="file" id="excelFile" accept=".xls,.xlsx">
 
-<button onclick="uploadExcel()">Upload</button>
+<button onclick="uploadExcel()">Upload Excel</button>
 
-<p id="msg"></p>
+<hr>
 
-<table border="1">
+<!-- SCAN BUTTON -->
+<button onclick="startSendScan()">Scan File (SEND)</button>
+<div id="scanner"></div>
+
+<!-- TABLE -->
+<table>
   <thead>
-  <tr>
-  <th>Sr No</th>
-  <th>Case No</th>
-  <th>Party Name</th>
-  <th>U/S</th>
-  <th>PS</th>
-  <th>SENT</th>
-  <th>RECEIVED</th>
-  <th>NEXT DATE</th>
-  <th>RECEIVED DATE</th>
-  <th>RECEIVED TIME</th>
-  <th>REMARKS</th>
-</tr>
+    <tr>
+      <th>Sr No</th>
+      <th>Case No</th>
+      <th>Party Name</th>
+      <th>U/S</th>
+      <th>PS</th>
+      <th>SENT</th>
+      <th>RECEIVED</th>
+      <th>NEXT DATE</th>
+      <th>RECEIVED DATE</th>
+      <th>RECEIVED TIME</th>
+      <th>REMARKS</th>
+    </tr>
   </thead>
   <tbody id="preview"></tbody>
 </table>
 
+<!-- LIBRARIES -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<!-- MAIN SCRIPT -->
 <script src="script.js"></script>
 
 </body>
 </html>
-<button onclick="startSendScan()">Scan File (SEND)</button>
-<div id="scanner"></div>
-<script src="https://unpkg.com/html5-qrcode"></script>
