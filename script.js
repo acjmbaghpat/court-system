@@ -1,3 +1,4 @@
+let currentData = null;
 function uploadExcel() {
 
   const date = document.getElementById("workDate").value;
@@ -43,6 +44,7 @@ function uploadExcel() {
   reader.readAsArrayBuffer(fileInput.files[0]);
 }
 function showPreview(rows) {
+  currentData = rows;
   const preview = document.getElementById("preview");
   preview.innerHTML = "";
 
@@ -148,3 +150,44 @@ document.getElementById("workDate").addEventListener("change", function () {
   window.currentDateData = JSON.parse(savedData);
   showPreview(window.currentDateData);
 });
+function startSendScan() {
+
+  if (!currentData) {
+    alert("Pehle Excel upload karo");
+    return;
+  }
+
+  const scannerDiv = document.getElementById("scanner");
+  scannerDiv.innerHTML = "";
+
+  const html5QrCode = new Html5Qrcode("scanner");
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+
+    (decodedText) => {
+
+      let found = false;
+
+      for (let i = 1; i < currentData.length; i++) {
+        if (String(currentData[i][1]).trim() === decodedText.trim()) {
+
+          currentData[i][5] = "SENT"; // SENT column
+          showPreview(currentData);
+
+          alert("FILE SENT");
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        alert("ERROR: File not in uploaded list");
+      }
+
+      html5QrCode.stop();
+      scannerDiv.innerHTML = "";
+    }
+  );
+}
