@@ -311,3 +311,37 @@ function showPending() {
 function showAll() {
   showPreview(currentData);
 }
+// =======================
+// SEARCH FUNCTION
+// =======================
+function searchData() {
+
+  const keyword = document
+    .getElementById("searchInput")
+    .value
+    .trim()
+    .toUpperCase();
+
+  if (!keyword) {
+    showPreview(currentData);
+    return;
+  }
+
+  const result = [];
+  result.push(currentData[0]); // header
+
+  for (let i = 1; i < currentData.length; i++) {
+
+    const rowText =
+      (currentData[i][1] || "") + " " +   // Case No
+      (currentData[i][2] || "") + " " +   // Party
+      (currentData[i][3] || "") + " " +   // Section
+      (currentData[i][4] || "");          // PS
+
+    if (rowText.toUpperCase().includes(keyword)) {
+      result.push(currentData[i]);
+    }
+  }
+
+  showPreview(result);
+}
