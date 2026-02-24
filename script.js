@@ -141,9 +141,12 @@ document.getElementById("workDate").addEventListener("change", function () {
 function startSendScan() {
 
   if (!currentData) {
-    alert("Pehle Excel upload karo");
+    alert("Pehle Excel upload kro");
     return;
   }
+
+  // yahin se camera open hoga
+}
 
   const scannerDiv = document.getElementById("scanner");
   scannerDiv.innerHTML = "";
