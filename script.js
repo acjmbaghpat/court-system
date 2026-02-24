@@ -312,36 +312,58 @@ function showAll() {
   showPreview(currentData);
 }
 // =======================
-// SEARCH FUNCTION
+// SEARCH (FINAL STABLE)
 // =======================
 function searchData() {
+
+  if (!currentData || currentData.length === 0) {
+    return;
+  }
 
   const keyword = document
     .getElementById("searchInput")
     .value
-    .trim()
-    .toUpperCase();
+    .toLowerCase();
 
+  // Agar empty hai to full list dikhao
   if (!keyword) {
     showPreview(currentData);
     return;
   }
 
-  const result = [];
-  result.push(currentData[0]); // header
+  const filtered = [];
+
+  // Header manually add karo
+  filtered.push([
+    "Sr No",
+    "Case No",
+    "Party Name",
+    "U/S",
+    "PS",
+    "SENT",
+    "RECEIVED",
+    "NEXT DATE",
+    "RECEIVED DATE",
+    "RECEIVED TIME",
+    "REMARKS"
+  ]);
 
   for (let i = 1; i < currentData.length; i++) {
 
-    const rowText =
-      (currentData[i][1] || "") + " " +   // Case No
-      (currentData[i][2] || "") + " " +   // Party
-      (currentData[i][3] || "") + " " +   // Section
-      (currentData[i][4] || "");          // PS
+    const caseNo = String(currentData[i][1] || "").toLowerCase();
+    const party  = String(currentData[i][2] || "").toLowerCase();
+    const section= String(currentData[i][3] || "").toLowerCase();
+    const ps     = String(currentData[i][4] || "").toLowerCase();
 
-    if (rowText.toUpperCase().includes(keyword)) {
-      result.push(currentData[i]);
+    if (
+      caseNo.includes(keyword) ||
+      party.includes(keyword) ||
+      section.includes(keyword) ||
+      ps.includes(keyword)
+    ) {
+      filtered.push(currentData[i]);
     }
   }
 
-  showPreview(result);
+  showPreview(filtered);
 }
