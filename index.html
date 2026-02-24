@@ -102,3 +102,18 @@
 </body>
 </html>
 <button onclick="startReceiveScan()">Scan File (RECEIVE)</button>
+<div id="nextDateBox" style="display:none; margin-top:15px; padding:10px; border:1px solid #ccc; background:#fff;">
+  <h4>Enter Next Date</h4>
+  
+  <!-- Calendar -->
+  <input type="date" id="calendarDate">
+  
+  <br><br>
+  
+  <!-- Manual entry -->
+  <input type="text" id="manualDate" placeholder="Or type manually (22/3/26)">
+  
+  <br><br>
+  
+  <button onclick="saveNextDate()">Save Next Date</button>
+</div>
