@@ -245,3 +245,20 @@ function saveNextDate() {
 
   alert("Next Date Saved");
 }
+// =======================
+// DOWNLOAD EXCEL
+// =======================
+function downloadExcel() {
+
+  if (!currentData || currentData.length === 0) {
+    alert("No data to download");
+    return;
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(currentData);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Court Register");
+
+  XLSX.writeFile(workbook, "court_register.xlsx");
+}
