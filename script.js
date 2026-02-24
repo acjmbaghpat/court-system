@@ -1,4 +1,5 @@
 let currentData = [];
+const STORAGE_KEY = "court_register_data";
 
 // =======================
 // EXCEL UPLOAD
@@ -56,6 +57,7 @@ function uploadExcel() {
 
     alert("Excel uploaded successfully");
   };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
 
   reader.readAsArrayBuffer(fileInput.files[0]);
 }
@@ -138,6 +140,7 @@ function startSendScan() {
     }
   );
 }
+localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
 // =======================
 // SCAN FILE (RECEIVE)
 // =======================
@@ -187,7 +190,7 @@ function startReceiveScan() {
           showPreview(currentData);
 
           alert("FILE RECEIVED");
-
+localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
           // NEXT DATE input
           askNextDate(i);
 
@@ -245,6 +248,7 @@ function saveNextDate() {
 
   alert("Next Date Saved");
 }
+localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
 // =======================
 // DOWNLOAD EXCEL
 // =======================
@@ -367,3 +371,10 @@ function searchData() {
 
   showPreview(filtered);
 }
+window.onload = function () {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    currentData = JSON.parse(saved);
+    showPreview(currentData);
+  }
+};
