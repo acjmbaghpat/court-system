@@ -2,9 +2,13 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Step 4</title>
+<title>Court App – Step 5 (Separate Scan)</title>
 
+<!-- Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- QR -->
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
 body{font-family:Arial;background:#f4f4f4;padding:10px}
@@ -15,48 +19,58 @@ button{background:#1976d2;color:#fff;border:none;border-radius:4px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:4px;font-size:12px}
 #msg{color:green;font-weight:bold;margin-top:5px}
+#reader{width:100%;margin-top:10px}
 </style>
 </head>
 
 <body>
 
-<!-- STEP 1 : CALENDAR -->
+<!-- STEP 1 : DATE -->
 <div class="section">
   <h3>STEP 1 – Working Date</h3>
   <input type="date" id="workDate">
   <div id="dateStatus"></div>
 </div>
 
-<!-- STEP 2–4 : EXCEL + STORAGE -->
+<!-- STEP 2–4 : EXCEL -->
 <div class="section">
-  <h3>STEP 2–4 – Excel Upload + Expand + Save (Phone)</h3>
+  <h3>STEP 2–4 – Excel Upload + Save</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
   <div id="msg"></div>
-  <table id="table"></table>
 </div>
+
+<!-- STEP 5 : QR -->
+<div class="section">
+  <h3>STEP 5 – QR Scan</h3>
+  <button onclick="startScan('SENT')">Scan for SENT</button>
+  <button onclick="startScan('RECEIVED')">Scan for RECEIVED</button>
+  <div id="reader"></div>
+</div>
+
+<table id="table"></table>
 
 <script>
 let currentData = [];
+let qr;
+let scanMode = ""; // SENT or RECEIVED
 
-/* -------- DATE CHANGE (LOAD DATA) -------- */
-document.getElementById("workDate").addEventListener("change", function(){
+/* ---------- DATE CHANGE ---------- */
+workDate.addEventListener("change", function(){
   let d = this.value;
-  document.getElementById("dateStatus").innerHTML =
-    "Working date set: <b>" + d + "</b>";
+  dateStatus.innerHTML = "Working date set: <b>" + d + "</b>";
 
-  let key = "court_" + d;
-  let saved = localStorage.getItem(key);
+  let saved = localStorage.getItem("court_" + d);
   if(saved){
     currentData = JSON.parse(saved);
     drawTable(currentData);
   }else{
     currentData = [];
-    document.getElementById("table").innerHTML = "";
+    table.innerHTML = "";
   }
 });
 
-/* -------- Helper: column finder -------- */
+/* ---------- HELPER ---------- */
 function getVal(row, names){
   for(let n of names){
     if(row[n] !== undefined) return row[n];
@@ -64,15 +78,14 @@ function getVal(row, names){
   return "";
 }
 
-/* -------- Excel Upload + Expand + SAVE -------- */
+/* ---------- EXCEL UPLOAD ---------- */
 function uploadExcel(){
-  let d = document.getElementById("workDate").value;
-  if(!d){
+  if(!workDate.value){
     alert("Pehle date select karo");
     return;
   }
 
-  let file = document.getElementById("excelFile").files[0];
+  let file = excelFile.files[0];
   if(!file){
     alert("No Excel selected");
     return;
@@ -80,19 +93,18 @@ function uploadExcel(){
 
   let reader = new FileReader();
   reader.onload = function(e){
-
-    let wb = XLSX.read(e.target.result, {type:"binary"});
+    let wb = XLSX.read(e.target.result,{type:"binary"});
     let raw = XLSX.utils.sheet_to_json(
       wb.Sheets[wb.SheetNames[0]],
       {defval:""}
     );
 
-    currentData = raw.map(r => ({
-      srno: getVal(r, ["srno","Sr No","SR NO","sr no"]),
-      caseno: getVal(r, ["case no","Case No","CASE NO","caseno"]),
-      partyname: getVal(r, ["party name","Party Name","PARTY NAME"]),
-      section: getVal(r, ["section","Section"]),
-      ps: getVal(r, ["ps","PS"]),
+    currentData = raw.map(r=>({
+      srno: getVal(r,["srno","Sr No","sr no"]),
+      caseno: getVal(r,["case no","Case No","caseno"]),
+      partyname: getVal(r,["party name","Party Name"]),
+      section: getVal(r,["section","Section"]),
+      ps: getVal(r,["ps","PS"]),
       sent: "",
       received: "",
       nextdate: "",
@@ -100,33 +112,75 @@ function uploadExcel(){
       remark: ""
     }));
 
-    // SAVE TO PHONE STORAGE (DATE-WISE)
-    localStorage.setItem("court_" + d, JSON.stringify(currentData));
-
-    document.getElementById("msg").innerText =
-      "Excel data saved for " + d;
-
+    localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+    msg.innerText = "Excel saved for "+workDate.value;
     drawTable(currentData);
   };
-
   reader.readAsBinaryString(file);
 }
 
-/* -------- TABLE -------- */
-function drawTable(data){
-  let t = document.getElementById("table");
-  t.innerHTML = "";
-  if(data.length === 0) return;
+/* ---------- QR SCAN ---------- */
+function startScan(mode){
+  if(!currentData.length){
+    alert("No data for selected date");
+    return;
+  }
+  scanMode = mode;
 
-  let heads = Object.keys(data[0]);
-  t.innerHTML =
-    "<tr>" + heads.map(h=>"<th>"+h+"</th>").join("") + "</tr>";
+  qr = new Html5Qrcode("reader");
+  qr.start(
+    {facingMode:"environment"},
+    {fps:10, qrbox:250},
+    code=>{
+      handleScan(code);
+      qr.stop();
+    }
+  );
+}
+
+function handleScan(code){
+  let row = currentData.find(r=>String(r.caseno)===String(code));
+
+  if(!row){
+    alert("Mismatch Problem ❌");
+    return;
+  }
+
+  if(scanMode === "SENT"){
+    if(row.sent){
+      alert("Already Sent ❌");
+      return;
+    }
+    row.sent = "YES";
+    alert("Sent ✅");
+  }
+
+  if(scanMode === "RECEIVED"){
+    if(!row.sent){
+      alert("Not Sent Yet ❌");
+      return;
+    }
+    row.received = "YES";
+    row.receiveddate = new Date().toLocaleDateString();
+    alert("Received ✅");
+  }
+
+  localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+  drawTable(currentData);
+}
+
+/* ---------- TABLE ---------- */
+function drawTable(data){
+  table.innerHTML = "";
+  if(!data.length) return;
+
+  let h = Object.keys(data[0]);
+  table.innerHTML =
+    "<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
   data.forEach(r=>{
-    t.innerHTML +=
-      "<tr>" +
-      heads.map(h=>"<td>"+r[h]+"</td>").join("") +
-      "</tr>";
+    table.innerHTML +=
+      "<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
   });
 }
 </script>
