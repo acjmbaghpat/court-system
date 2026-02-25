@@ -2,49 +2,81 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ZXing Barcode Scanner</title>
+<title>Code128 Full Screen Scanner</title>
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
-#video{
-  width:100%;
-  height:320px;
-  border:3px solid #1976d2;
+body{
+  margin:0;
+  background:#000;
+  font-family:Arial;
 }
+
+/* FULL SCREEN CAMERA */
+#video{
+  width:100vw;
+  height:80vh;
+  object-fit:cover;
+}
+
+/* HORIZONTAL SCAN GUIDE */
+#scanLine{
+  position:absolute;
+  top:40%;
+  left:10%;
+  width:80%;
+  height:4px;
+  background:red;
+}
+
 button{
   width:100%;
-  padding:12px;
-  font-size:16px;
-  margin-top:10px;
+  padding:15px;
+  font-size:18px;
+  background:#1976d2;
+  color:white;
+  border:none;
 }
 </style>
 </head>
 
 <body>
 
-<h3>Professional Barcode Scanner</h3>
+<button onclick="startScan()">Start Code128 Scan</button>
 
-<button onclick="startScan()">Start Scan</button>
-<video id="video"></video>
+<div style="position:relative;">
+  <video id="video"></video>
+  <div id="scanLine"></div>
+</div>
 
 <script>
 let codeReader;
 
 async function startScan(){
 
-  codeReader = new ZXing.BrowserMultiFormatReader();
+  codeReader = new ZXing.BrowserMultiFormatReader(
+    new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS,
+    [ZXing.BarcodeFormat.CODE_128]]])
+  );
 
   try{
-    const devices = await codeReader.listVideoInputDevices();
-    const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
 
-    codeReader.decodeFromVideoDevice(backCamera.deviceId, 'video', (result, err) => {
-      if(result){
-        alert("SCANNED: " + result.text);
-        codeReader.reset();
+    const devices = await codeReader.listVideoInputDevices();
+    const backCam = devices.find(d =>
+      d.label.toLowerCase().includes('back')
+    ) || devices[0];
+
+    codeReader.decodeFromVideoDevice(
+      backCam.deviceId,
+      'video',
+      (result, err) => {
+        if(result){
+          alert("SCANNED: " + result.text);
+          codeReader.reset();
+        }
       }
-    });
+    );
 
   }catch(err){
     alert("Camera start error ❌");
