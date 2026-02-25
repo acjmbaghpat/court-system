@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Column Index Based</title>
+<title>Court App – Large Camera Scan</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -11,32 +11,43 @@
 body{font-family:Arial;background:#f4f4f4;padding:10px}
 .section{background:#fff;padding:10px;margin-bottom:15px;border-radius:6px}
 h3{margin-top:0}
-input,button{width:100%;padding:8px;margin:6px 0}
+input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
+
+/* TABLE */
 table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #333;padding:4px;font-size:12px}
-#reader{width:100%;margin-top:10px}
+th,td{border:1px solid #333;padding:5px;font-size:12px}
+
+/* CAMERA AREA – BIG */
+#reader{
+  width:100%;
+  height:320px;          /* 🔥 camera height */
+  border:2px solid #1976d2;
+  border-radius:6px;
+  margin-top:10px;
+  overflow:hidden;
+}
 </style>
 </head>
 
 <body>
 
-<!-- STEP 1 DATE -->
+<!-- DATE -->
 <div class="section">
-  <h3>STEP 1 – Working Date</h3>
+  <h3>Working Date</h3>
   <input type="date" id="workDate">
 </div>
 
-<!-- STEP 2 EXCEL -->
+<!-- EXCEL -->
 <div class="section">
-  <h3>STEP 2 – Excel Upload (Column Based)</h3>
+  <h3>Excel Upload</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
 </div>
 
-<!-- STEP 5 QR -->
+<!-- SCAN -->
 <div class="section">
-  <h3>STEP 5 – QR Scan</h3>
+  <h3>Scan File</h3>
   <button onclick="startScan('SENT')">Scan for SENT</button>
   <button onclick="startScan('RECEIVED')">Scan for RECEIVED</button>
   <div id="reader"></div>
@@ -57,7 +68,7 @@ workDate.addEventListener("change",()=>{
   drawTable(currentData);
 });
 
-/* EXCEL UPLOAD – COLUMN INDEX BASED */
+/* EXCEL UPLOAD – COLUMN BASED */
 function uploadExcel(){
   if(!workDate.value){
     alert("Pehle date select karo");
@@ -74,7 +85,7 @@ function uploadExcel(){
       {header:1, defval:""}
     );
 
-    rows.shift(); // remove header row
+    rows.shift(); // header remove
 
     currentData = rows.map(r=>({
       srno: r[0] || "",
@@ -90,23 +101,27 @@ function uploadExcel(){
     }));
 
     localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-    alert("Excel uploaded & data fetched correctly ✅");
+    alert("Excel uploaded successfully");
     drawTable(currentData);
   };
   reader.readAsBinaryString(file);
 }
 
-/* QR SCAN */
+/* START SCAN – BIG QR BOX */
 function startScan(mode){
   if(!currentData.length){
     alert("No data for selected date");
     return;
   }
   scanMode = mode;
+
   qr = new Html5Qrcode("reader");
   qr.start(
-    {facingMode:"environment"},
-    {fps:10, qrbox:250},
+    { facingMode:"environment" },
+    {
+      fps: 10,
+      qrbox: { width: 280, height: 280 }  /* 🔥 BIG SCAN AREA */
+    },
     code=>{
       handleScan(code);
       qr.stop();
@@ -114,6 +129,7 @@ function startScan(mode){
   );
 }
 
+/* HANDLE SCAN */
 function handleScan(code){
   let row = currentData.find(r=>String(r.caseno)===String(code));
   if(!row){ alert("Mismatch ❌"); return; }
