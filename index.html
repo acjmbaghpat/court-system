@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Large Camera Scan</title>
+<title>Court App – Stable Scanner</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -13,15 +13,13 @@ body{font-family:Arial;background:#f4f4f4;padding:10px}
 h3{margin-top:0}
 input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
-
-/* TABLE */
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:5px;font-size:12px}
 
-/* CAMERA AREA – BIG */
+/* BIG CAMERA */
 #reader{
   width:100%;
-  height:320px;          /* 🔥 camera height */
+  height:300px;
   border:2px solid #1976d2;
   border-radius:6px;
   margin-top:10px;
@@ -32,24 +30,21 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 <body>
 
-<!-- DATE -->
 <div class="section">
   <h3>Working Date</h3>
   <input type="date" id="workDate">
 </div>
 
-<!-- EXCEL -->
 <div class="section">
   <h3>Excel Upload</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
 </div>
 
-<!-- SCAN -->
 <div class="section">
   <h3>Scan File</h3>
-  <button onclick="startScan('SENT')">Scan for SENT</button>
-  <button onclick="startScan('RECEIVED')">Scan for RECEIVED</button>
+  <button onclick="scanSent()">Scan for SENT</button>
+  <button onclick="scanReceived()">Scan for RECEIVED</button>
   <div id="reader"></div>
 </div>
 
@@ -57,25 +52,28 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 <script>
 let currentData = [];
-let qr;
+let qrScanner = null;
 let scanMode = "";
 
 /* DATE LOAD */
 workDate.addEventListener("change",()=>{
-  let d = workDate.value;
-  let saved = localStorage.getItem("court_"+d);
+  let saved = localStorage.getItem("court_"+workDate.value);
   currentData = saved ? JSON.parse(saved) : [];
   drawTable(currentData);
 });
 
-/* EXCEL UPLOAD – COLUMN BASED */
+/* EXCEL UPLOAD (COLUMN POSITION BASED) */
 function uploadExcel(){
   if(!workDate.value){
     alert("Pehle date select karo");
     return;
   }
+
   let file = excelFile.files[0];
-  if(!file){ alert("No Excel selected"); return; }
+  if(!file){
+    alert("No Excel selected");
+    return;
+  }
 
   let reader = new FileReader();
   reader.onload = e=>{
@@ -85,7 +83,7 @@ function uploadExcel(){
       {header:1, defval:""}
     );
 
-    rows.shift(); // header remove
+    rows.shift(); // remove header row
 
     currentData = rows.map(r=>({
       srno: r[0] || "",
@@ -95,53 +93,89 @@ function uploadExcel(){
       ps: r[4] || "",
       sent: "",
       received: "",
-      nextdate: "",
-      receiveddate: "",
-      remark: ""
+      receiveddate: ""
     }));
 
     localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-    alert("Excel uploaded successfully");
+    alert("Excel Uploaded Successfully ✅");
     drawTable(currentData);
   };
   reader.readAsBinaryString(file);
 }
 
-/* START SCAN – BIG QR BOX */
-function startScan(mode){
+/* SCAN BUTTONS */
+function scanSent(){
+  scanMode = "SENT";
+  startScanner();
+}
+
+function scanReceived(){
+  scanMode = "RECEIVED";
+  startScanner();
+}
+
+/* START SCANNER */
+function startScanner(){
+
   if(!currentData.length){
     alert("No data for selected date");
     return;
   }
-  scanMode = mode;
 
-  qr = new Html5Qrcode("reader");
-  qr.start(
+  // stop old camera if running
+  if(qrScanner){
+    qrScanner.stop().catch(()=>{});
+    qrScanner = null;
+  }
+
+  document.getElementById("reader").innerHTML = "";
+
+  qrScanner = new Html5Qrcode("reader");
+
+  qrScanner.start(
     { facingMode:"environment" },
     {
       fps: 10,
-      qrbox: { width: 280, height: 280 }  /* 🔥 BIG SCAN AREA */
+      qrbox: 240
     },
     code=>{
       handleScan(code);
-      qr.stop();
-    }
-  );
+    },
+    err=>{}
+  ).catch(()=>{
+    alert("Camera start error ❌ (Allow camera permission)");
+  });
 }
 
 /* HANDLE SCAN */
 function handleScan(code){
+
+  qrScanner.stop().then(()=>{
+    qrScanner.clear();
+    qrScanner = null;
+  });
+
   let row = currentData.find(r=>String(r.caseno)===String(code));
-  if(!row){ alert("Mismatch ❌"); return; }
+
+  if(!row){
+    alert("Mismatch ❌");
+    return;
+  }
 
   if(scanMode==="SENT"){
-    if(row.sent){ alert("Already Sent ❌"); return; }
+    if(row.sent){
+      alert("Already Sent ❌");
+      return;
+    }
     row.sent="YES";
     alert("Sent ✅");
   }
 
   if(scanMode==="RECEIVED"){
-    if(!row.sent){ alert("Not Sent Yet ❌"); return; }
+    if(!row.sent){
+      alert("Not Sent Yet ❌");
+      return;
+    }
     row.received="YES";
     row.receiveddate=new Date().toLocaleDateString();
     alert("Received ✅");
@@ -155,8 +189,10 @@ function handleScan(code){
 function drawTable(data){
   table.innerHTML="";
   if(!data.length) return;
+
   let h = Object.keys(data[0]);
   table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+
   data.forEach(r=>{
     table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
   });
