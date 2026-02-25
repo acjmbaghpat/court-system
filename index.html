@@ -60,35 +60,30 @@ function uploadExcel(){
 
   let reader = new FileReader();
   reader.onload = function(e){
+
     let wb = XLSX.read(e.target.result, {type:"binary"});
     let sheet = XLSX.utils.sheet_to_json(
       wb.Sheets[wb.SheetNames[0]]
     );
 
-    alert("Excel Uploaded (TEST PASS)");
+    // ===== EXPAND PART =====
+    let expanded = sheet.map(r => ({
+      srno: r.srno || "",
+      "case no": r["case no"] || "",
+      "party name": r["party name"] || "",
+      section: r.section || "",
+      ps: r.ps || "",
+      sent: "",
+      received: "",
+      "next date": "",
+      "received date": "",
+      remark: ""
+    }));
 
-    drawTable(sheet);
+    alert("Excel Expanded Successfully");
+
+    drawTable(expanded);
   };
+
   reader.readAsBinaryString(file);
 }
-
-function drawTable(data){
-  let t = document.getElementById("table");
-  t.innerHTML = "";
-  if(data.length === 0) return;
-
-  let heads = Object.keys(data[0]);
-  t.innerHTML =
-    "<tr>" + heads.map(h=>"<th>"+h+"</th>").join("") + "</tr>";
-
-  data.forEach(r=>{
-    t.innerHTML +=
-      "<tr>" +
-      heads.map(h=>"<td>"+(r[h]||"")+"</td>").join("") +
-      "</tr>";
-  });
-}
-</script>
-
-</body>
-</html>
