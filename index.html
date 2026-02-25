@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court File App – Auto Next Date on Receive</title>
+<title>Court File App – Search Added</title>
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -13,33 +13,18 @@ body{font-family:Arial;background:#f4f4f4;margin:0;padding:10px}
 h3{margin:0 0 6px 0}
 input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
-
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 /* SCANNER */
-#scannerWrap{
-  position:fixed;inset:0;background:#000;display:none;z-index:999
-}
+#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
 #video{width:100vw;height:80vh;object-fit:cover}
 #scanLine{position:absolute;top:40%;left:10%;width:80%;height:4px;background:red}
 #closeScan{background:#c62828}
 
 /* NEXT DATE POPUP */
-#nextDatePopup{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.6);
-  display:none;
-  z-index:1000;
-}
-#popupBox{
-  background:#fff;
-  margin:20% auto;
-  padding:15px;
-  width:90%;
-  border-radius:6px;
-}
+#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;z-index:1000}
+#popupBox{background:#fff;margin:20% auto;padding:15px;width:90%;border-radius:6px}
 </style>
 </head>
 
@@ -57,6 +42,11 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 </div>
 
 <div class="section">
+  <h3>Search</h3>
+  <input type="text" id="searchBox" placeholder="Search case / party / sr no / ps">
+</div>
+
+<div class="section">
   <h3>Scan Action</h3>
   <button onclick="scanSent()">Scan for SENT</button>
   <button onclick="scanReceived()">Scan for RECEIVED</button>
@@ -64,7 +54,7 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 <table id="table"></table>
 
-<!-- FULL SCREEN SCANNER -->
+<!-- SCANNER -->
 <div id="scannerWrap">
   <div style="position:relative;">
     <video id="video"></video>
@@ -84,6 +74,7 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 <script>
 let currentData = [];
+let filteredData = [];
 let scanMode = "";
 let codeReader;
 let lastReceivedIndex = null;
@@ -92,7 +83,21 @@ let lastReceivedIndex = null;
 workDate.addEventListener("change",()=>{
   let saved = localStorage.getItem("court_"+workDate.value);
   currentData = saved ? JSON.parse(saved) : [];
-  drawTable(currentData);
+  filteredData = [...currentData];
+  drawTable(filteredData);
+});
+
+/* SEARCH */
+searchBox.addEventListener("input",()=>{
+  let q = searchBox.value.toLowerCase();
+  if(!q){
+    filteredData = [...currentData];
+  }else{
+    filteredData = currentData.filter(r =>
+      Object.values(r).join(" ").toLowerCase().includes(q)
+    );
+  }
+  drawTable(filteredData);
 });
 
 /* EXCEL UPLOAD */
@@ -123,8 +128,9 @@ function uploadExcel(){
     }));
 
     localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+    filteredData = [...currentData];
     alert("Excel uploaded & saved");
-    drawTable(currentData);
+    drawTable(filteredData);
   };
   reader.readAsBinaryString(file);
 }
@@ -151,7 +157,6 @@ async function startScanner(){
   });
 }
 
-/* STOP SCANNER */
 function stopScanner(){
   if(codeReader){ codeReader.reset(); codeReader=null; }
   scannerWrap.style.display="none";
@@ -183,7 +188,8 @@ function handleScan(code){
   }
 
   localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-  drawTable(currentData);
+  filteredData = [...currentData];
+  drawTable(filteredData);
 }
 
 /* NEXT DATE POPUP */
@@ -201,7 +207,8 @@ function saveNextDate(){
 
   nextDatePopup.style.display="none";
   alert("Next Date Saved ✅");
-  drawTable(currentData);
+  filteredData = [...currentData];
+  drawTable(filteredData);
 }
 
 /* TABLE */
