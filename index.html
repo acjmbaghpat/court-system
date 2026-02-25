@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Stable Scanner</title>
+<title>Court App – High Accuracy Barcode Scanner</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -19,11 +19,10 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 /* BIG CAMERA */
 #reader{
   width:100%;
-  height:300px;
-  border:2px solid #1976d2;
+  height:340px;
+  border:3px solid #1976d2;
   border-radius:6px;
   margin-top:10px;
-  overflow:hidden;
 }
 </style>
 </head>
@@ -42,7 +41,7 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 </div>
 
 <div class="section">
-  <h3>Scan File</h3>
+  <h3>Scan File (Barcode / QR)</h3>
   <button onclick="scanSent()">Scan for SENT</button>
   <button onclick="scanReceived()">Scan for RECEIVED</button>
   <div id="reader"></div>
@@ -52,7 +51,7 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 <script>
 let currentData = [];
-let qrScanner = null;
+let scanner = null;
 let scanMode = "";
 
 /* DATE LOAD */
@@ -62,18 +61,11 @@ workDate.addEventListener("change",()=>{
   drawTable(currentData);
 });
 
-/* EXCEL UPLOAD (COLUMN POSITION BASED) */
+/* EXCEL UPLOAD */
 function uploadExcel(){
-  if(!workDate.value){
-    alert("Pehle date select karo");
-    return;
-  }
-
+  if(!workDate.value){ alert("Pehle date select karo"); return; }
   let file = excelFile.files[0];
-  if(!file){
-    alert("No Excel selected");
-    return;
-  }
+  if(!file){ alert("No Excel selected"); return; }
 
   let reader = new FileReader();
   reader.onload = e=>{
@@ -82,39 +74,31 @@ function uploadExcel(){
       wb.Sheets[wb.SheetNames[0]],
       {header:1, defval:""}
     );
-
-    rows.shift(); // remove header row
+    rows.shift();
 
     currentData = rows.map(r=>({
-      srno: r[0] || "",
-      caseno: r[1] || "",
-      partyname: r[2] || "",
-      section: r[3] || "",
-      ps: r[4] || "",
-      sent: "",
-      received: "",
-      receiveddate: ""
+      srno:r[0]||"",
+      caseno:String(r[1]||"").trim(),
+      partyname:r[2]||"",
+      section:r[3]||"",
+      ps:r[4]||"",
+      sent:"",
+      received:"",
+      receiveddate:""
     }));
 
     localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-    alert("Excel Uploaded Successfully ✅");
+    alert("Excel uploaded successfully");
     drawTable(currentData);
   };
   reader.readAsBinaryString(file);
 }
 
 /* SCAN BUTTONS */
-function scanSent(){
-  scanMode = "SENT";
-  startScanner();
-}
+function scanSent(){ scanMode="SENT"; startScanner(); }
+function scanReceived(){ scanMode="RECEIVED"; startScanner(); }
 
-function scanReceived(){
-  scanMode = "RECEIVED";
-  startScanner();
-}
-
-/* START SCANNER */
+/* HIGH ACCURACY SCANNER */
 function startScanner(){
 
   if(!currentData.length){
@@ -122,60 +106,64 @@ function startScanner(){
     return;
   }
 
-  // stop old camera if running
-  if(qrScanner){
-    qrScanner.stop().catch(()=>{});
-    qrScanner = null;
+  if(scanner){
+    scanner.stop().catch(()=>{});
+    scanner = null;
   }
 
-  document.getElementById("reader").innerHTML = "";
+  document.getElementById("reader").innerHTML="";
 
-  qrScanner = new Html5Qrcode("reader");
+  scanner = new Html5Qrcode("reader");
 
-  qrScanner.start(
-    { facingMode:"environment" },
+  scanner.start(
     {
-      fps: 10,
-      qrbox: 240
+      facingMode:"environment",
+      advanced:[{ zoom:2.0 }]   // 🔥 optical zoom
+    },
+    {
+      fps: 12,
+      qrbox:{ width:300, height:180 }, // 🔥 barcode shape
+      disableFlip:true
     },
     code=>{
       handleScan(code);
     },
     err=>{}
-  ).catch(()=>{
-    alert("Camera start error ❌ (Allow camera permission)");
+  ).then(()=>{
+    // 🔦 TORCH ON (if supported)
+    scanner.applyVideoConstraints({
+      advanced:[{ torch:true }]
+    }).catch(()=>{});
+  }).catch(()=>{
+    alert("Camera permission / start error ❌");
   });
 }
 
 /* HANDLE SCAN */
 function handleScan(code){
 
-  qrScanner.stop().then(()=>{
-    qrScanner.clear();
-    qrScanner = null;
+  scanner.stop().then(()=>{
+    scanner.clear();
+    scanner=null;
   });
 
-  let row = currentData.find(r=>String(r.caseno)===String(code));
+  code = String(code).trim();
+
+  let row = currentData.find(r=>r.caseno===code);
 
   if(!row){
-    alert("Mismatch ❌");
+    alert("Mismatch ❌ (Barcode not found)");
     return;
   }
 
   if(scanMode==="SENT"){
-    if(row.sent){
-      alert("Already Sent ❌");
-      return;
-    }
+    if(row.sent){ alert("Already Sent ❌"); return; }
     row.sent="YES";
     alert("Sent ✅");
   }
 
   if(scanMode==="RECEIVED"){
-    if(!row.sent){
-      alert("Not Sent Yet ❌");
-      return;
-    }
+    if(!row.sent){ alert("Not Sent Yet ❌"); return; }
     row.received="YES";
     row.receiveddate=new Date().toLocaleDateString();
     alert("Received ✅");
@@ -189,10 +177,8 @@ function handleScan(code){
 function drawTable(data){
   table.innerHTML="";
   if(!data.length) return;
-
   let h = Object.keys(data[0]);
   table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
-
   data.forEach(r=>{
     table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
   });
