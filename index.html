@@ -2,110 +2,34 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – High Accuracy Barcode Scanner</title>
+<title>Camera Scan Test</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body{font-family:Arial;background:#f4f4f4;padding:10px}
-.section{background:#fff;padding:10px;margin-bottom:15px;border-radius:6px}
-h3{margin-top:0}
-input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
-button{background:#1976d2;color:#fff;border:none;border-radius:4px}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #333;padding:5px;font-size:12px}
-
-/* BIG CAMERA */
 #reader{
   width:100%;
-  height:340px;
-  border:3px solid #1976d2;
-  border-radius:6px;
-  margin-top:10px;
+  height:300px;
+  border:3px solid green;
+}
+button{
+  width:100%;
+  padding:12px;
+  font-size:16px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="section">
-  <h3>Working Date</h3>
-  <input type="date" id="workDate">
-</div>
-
-<div class="section">
-  <h3>Excel Upload</h3>
-  <input type="file" id="excelFile">
-  <button onclick="uploadExcel()">Upload Excel</button>
-</div>
-
-<div class="section">
-  <h3>Scan File (Barcode / QR)</h3>
-  <button onclick="scanSent()">Scan for SENT</button>
-  <button onclick="scanReceived()">Scan for RECEIVED</button>
-  <div id="reader"></div>
-</div>
-
-<table id="table"></table>
+<h3>Camera Scan Test</h3>
+<button onclick="start()">Start Camera</button>
+<div id="reader"></div>
 
 <script>
-let currentData = [];
-let scanner = null;
-let scanMode = "";
+let scanner;
 
-/* DATE LOAD */
-workDate.addEventListener("change",()=>{
-  let saved = localStorage.getItem("court_"+workDate.value);
-  currentData = saved ? JSON.parse(saved) : [];
-  drawTable(currentData);
-});
-
-/* EXCEL UPLOAD */
-function uploadExcel(){
-  if(!workDate.value){ alert("Pehle date select karo"); return; }
-  let file = excelFile.files[0];
-  if(!file){ alert("No Excel selected"); return; }
-
-  let reader = new FileReader();
-  reader.onload = e=>{
-    let wb = XLSX.read(e.target.result,{type:"binary"});
-    let rows = XLSX.utils.sheet_to_json(
-      wb.Sheets[wb.SheetNames[0]],
-      {header:1, defval:""}
-    );
-    rows.shift();
-
-    currentData = rows.map(r=>({
-      srno:r[0]||"",
-      caseno:String(r[1]||"").trim(),
-      partyname:r[2]||"",
-      section:r[3]||"",
-      ps:r[4]||"",
-      sent:"",
-      received:"",
-      receiveddate:""
-    }));
-
-    localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-    alert("Excel uploaded successfully");
-    drawTable(currentData);
-  };
-  reader.readAsBinaryString(file);
-}
-
-/* SCAN BUTTONS */
-function scanSent(){ scanMode="SENT"; startScanner(); }
-function scanReceived(){ scanMode="RECEIVED"; startScanner(); }
-
-/* HIGH ACCURACY SCANNER */
-function startScanner(){
-
-  if(!currentData.length){
-    alert("No data for selected date");
-    return;
-  }
-
+function start(){
   if(scanner){
     scanner.stop().catch(()=>{});
     scanner = null;
@@ -116,71 +40,15 @@ function startScanner(){
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
-    {
-      facingMode:"environment",
-      advanced:[{ zoom:2.0 }]   // 🔥 optical zoom
-    },
-    {
-      fps: 12,
-      qrbox:{ width:300, height:180 }, // 🔥 barcode shape
-      disableFlip:true
-    },
-    code=>{
-      handleScan(code);
+    { facingMode:"environment" },
+    { fps:10, qrbox:250 },
+    txt=>{
+      alert("SCANNED: " + txt);
+      scanner.stop();
     },
     err=>{}
-  ).then(()=>{
-    // 🔦 TORCH ON (if supported)
-    scanner.applyVideoConstraints({
-      advanced:[{ torch:true }]
-    }).catch(()=>{});
-  }).catch(()=>{
-    alert("Camera permission / start error ❌");
-  });
-}
-
-/* HANDLE SCAN */
-function handleScan(code){
-
-  scanner.stop().then(()=>{
-    scanner.clear();
-    scanner=null;
-  });
-
-  code = String(code).trim();
-
-  let row = currentData.find(r=>r.caseno===code);
-
-  if(!row){
-    alert("Mismatch ❌ (Barcode not found)");
-    return;
-  }
-
-  if(scanMode==="SENT"){
-    if(row.sent){ alert("Already Sent ❌"); return; }
-    row.sent="YES";
-    alert("Sent ✅");
-  }
-
-  if(scanMode==="RECEIVED"){
-    if(!row.sent){ alert("Not Sent Yet ❌"); return; }
-    row.received="YES";
-    row.receiveddate=new Date().toLocaleDateString();
-    alert("Received ✅");
-  }
-
-  localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-  drawTable(currentData);
-}
-
-/* TABLE */
-function drawTable(data){
-  table.innerHTML="";
-  if(!data.length) return;
-  let h = Object.keys(data[0]);
-  table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
-  data.forEach(r=>{
-    table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
+  ).catch(e=>{
+    alert("Camera start failed ❌");
   });
 }
 </script>
