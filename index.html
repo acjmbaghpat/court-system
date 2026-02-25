@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Court App – Step Build</title>
 
-<!-- Excel library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -21,36 +20,38 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
 
 <body>
 
-<!-- ================= STEP 1 : CALENDAR (FINAL) ================= -->
+<!-- STEP 1 : CALENDAR -->
 <div class="section">
-  <h3>STEP 1 – Working Date (FINAL)</h3>
-
-  <label>काम करने की तारीख चुनें</label>
+  <h3>STEP 1 – Working Date</h3>
   <input type="date" id="workDate">
-
   <div id="dateStatus"></div>
 </div>
 
-<!-- ================= STEP 2 & 3 : EXCEL UPLOAD + EXPAND ================= -->
+<!-- STEP 2 : EXCEL -->
 <div class="section">
-  <h3>STEP 2 – Excel Upload + Auto Expand</h3>
-
+  <h3>STEP 2 – Excel Upload + Expand</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
-
   <div id="msg"></div>
-
   <table id="table"></table>
 </div>
 
 <script>
-/* ================= STEP 1 FINAL ================= */
+/* -------- Calendar -------- */
 document.getElementById("workDate").addEventListener("change", function(){
   document.getElementById("dateStatus").innerHTML =
     "Working date set: <b>" + this.value + "</b>";
 });
 
-/* ================= STEP 2 + 3 FINAL ================= */
+/* -------- Helper: column finder -------- */
+function getVal(row, names){
+  for(let n of names){
+    if(row[n] !== undefined) return row[n];
+  }
+  return "";
+}
+
+/* -------- Excel Upload + Expand -------- */
 function uploadExcel(){
   let file = document.getElementById("excelFile").files[0];
   if(!file){
@@ -62,17 +63,17 @@ function uploadExcel(){
   reader.onload = function(e){
 
     let wb = XLSX.read(e.target.result, {type:"binary"});
-    let rawData = XLSX.utils.sheet_to_json(
-      wb.Sheets[wb.SheetNames[0]]
+    let raw = XLSX.utils.sheet_to_json(
+      wb.Sheets[wb.SheetNames[0]],
+      {defval:""}
     );
 
-    // ===== AUTO EXPAND DATA =====
-    let expandedData = rawData.map(r => ({
-      srno: r.srno || "",
-      caseno: r["case no"] || "",
-      partyname: r["party name"] || "",
-      section: r.section || "",
-      ps: r.ps || "",
+    let expandedData = raw.map(r => ({
+      srno: getVal(r, ["srno","Sr No","SR NO","sr no"]),
+      caseno: getVal(r, ["case no","Case No","CASE NO","caseno"]),
+      partyname: getVal(r, ["party name","Party Name","PARTY NAME"]),
+      section: getVal(r, ["section","Section"]),
+      ps: getVal(r, ["ps","PS"]),
       sent: "",
       received: "",
       nextdate: "",
@@ -81,7 +82,7 @@ function uploadExcel(){
     }));
 
     document.getElementById("msg").innerText =
-      "Excel uploaded & expanded successfully";
+      "Excel data loaded & expanded successfully";
 
     drawTable(expandedData);
   };
@@ -89,11 +90,10 @@ function uploadExcel(){
   reader.readAsBinaryString(file);
 }
 
-/* ================= TABLE DRAW ================= */
+/* -------- Table -------- */
 function drawTable(data){
   let t = document.getElementById("table");
   t.innerHTML = "";
-
   if(data.length === 0) return;
 
   let heads = Object.keys(data[0]);
@@ -103,7 +103,7 @@ function drawTable(data){
   data.forEach(r=>{
     t.innerHTML +=
       "<tr>" +
-      heads.map(h=>"<td>"+(r[h]||"")+"</td>").join("") +
+      heads.map(h=>"<td>"+r[h]+"</td>").join("") +
       "</tr>";
   });
 }
