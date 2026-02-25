@@ -2,54 +2,53 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Camera Scan Test</title>
+<title>ZXing Barcode Scanner</title>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
-#reader{
+#video{
   width:100%;
-  height:300px;
-  border:3px solid green;
+  height:320px;
+  border:3px solid #1976d2;
 }
 button{
   width:100%;
   padding:12px;
   font-size:16px;
+  margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h3>Camera Scan Test</h3>
-<button onclick="start()">Start Camera</button>
-<div id="reader"></div>
+<h3>Professional Barcode Scanner</h3>
+
+<button onclick="startScan()">Start Scan</button>
+<video id="video"></video>
 
 <script>
-let scanner;
+let codeReader;
 
-function start(){
-  if(scanner){
-    scanner.stop().catch(()=>{});
-    scanner = null;
+async function startScan(){
+
+  codeReader = new ZXing.BrowserMultiFormatReader();
+
+  try{
+    const devices = await codeReader.listVideoInputDevices();
+    const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
+
+    codeReader.decodeFromVideoDevice(backCamera.deviceId, 'video', (result, err) => {
+      if(result){
+        alert("SCANNED: " + result.text);
+        codeReader.reset();
+      }
+    });
+
+  }catch(err){
+    alert("Camera start error ❌");
   }
-
-  document.getElementById("reader").innerHTML="";
-
-  scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-    { facingMode:"environment" },
-    { fps:10, qrbox:250 },
-    txt=>{
-      alert("SCANNED: " + txt);
-      scanner.stop();
-    },
-    err=>{}
-  ).catch(e=>{
-    alert("Camera start failed ❌");
-  });
 }
 </script>
 
