@@ -2,25 +2,38 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Code128 Full Screen Scanner</title>
+<title>Court File App – Code128 Final</title>
 
+<!-- ZXing Barcode Engine -->
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 
+<!-- Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <style>
-body{
-  margin:0;
-  background:#000;
-  font-family:Arial;
-}
+body{font-family:Arial;background:#f4f4f4;margin:0;padding:10px}
+.section{background:#fff;padding:10px;margin-bottom:12px;border-radius:6px}
+h3{margin:0 0 6px 0}
+input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
+button{background:#1976d2;color:#fff;border:none;border-radius:4px}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #333;padding:5px;font-size:12px}
 
 /* FULL SCREEN CAMERA */
+#scannerWrap{
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:none;
+  z-index:999;
+}
 #video{
   width:100vw;
   height:80vh;
   object-fit:cover;
 }
-
-/* HORIZONTAL SCAN GUIDE */
 #scanLine{
   position:absolute;
   top:40%;
@@ -29,58 +42,171 @@ body{
   height:4px;
   background:red;
 }
-
-button{
+#closeScan{
   width:100%;
-  padding:15px;
-  font-size:18px;
-  background:#1976d2;
-  color:white;
-  border:none;
+  padding:14px;
+  font-size:16px;
+  background:#c62828;
 }
 </style>
 </head>
 
 <body>
 
-<button onclick="startScan()">Start Code128 Scan</button>
+<div class="section">
+  <h3>Working Date</h3>
+  <input type="date" id="workDate">
+</div>
 
-<div style="position:relative;">
-  <video id="video"></video>
-  <div id="scanLine"></div>
+<div class="section">
+  <h3>Excel Upload</h3>
+  <input type="file" id="excelFile">
+  <button onclick="uploadExcel()">Upload Excel</button>
+</div>
+
+<div class="section">
+  <h3>Scan Action</h3>
+  <button onclick="scanSent()">Scan for SENT</button>
+  <button onclick="scanReceived()">Scan for RECEIVED</button>
+</div>
+
+<table id="table"></table>
+
+<!-- FULL SCREEN SCANNER -->
+<div id="scannerWrap">
+  <div style="position:relative;">
+    <video id="video"></video>
+    <div id="scanLine"></div>
+  </div>
+  <button id="closeScan" onclick="stopScanner()">Close Scanner</button>
 </div>
 
 <script>
+let currentData = [];
+let scanMode = "";
 let codeReader;
 
-async function startScan(){
+/* DATE LOAD */
+workDate.addEventListener("change",()=>{
+  let saved = localStorage.getItem("court_"+workDate.value);
+  currentData = saved ? JSON.parse(saved) : [];
+  drawTable(currentData);
+});
+
+/* EXCEL UPLOAD (COLUMN POSITION BASED) */
+function uploadExcel(){
+  if(!workDate.value){ alert("Pehle date select karo"); return; }
+  let file = excelFile.files[0];
+  if(!file){ alert("No Excel selected"); return; }
+
+  let reader = new FileReader();
+  reader.onload = e=>{
+    let wb = XLSX.read(e.target.result,{type:"binary"});
+    let rows = XLSX.utils.sheet_to_json(
+      wb.Sheets[wb.SheetNames[0]],
+      {header:1, defval:""}
+    );
+    rows.shift();
+
+    currentData = rows.map(r=>({
+      srno:r[0]||"",
+      caseno:String(r[1]||"").trim(),
+      partyname:r[2]||"",
+      section:r[3]||"",
+      ps:r[4]||"",
+      sent:"",
+      received:"",
+      receiveddate:""
+    }));
+
+    localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+    alert("Excel uploaded & saved");
+    drawTable(currentData);
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* SCAN BUTTONS */
+function scanSent(){ scanMode="SENT"; startScanner(); }
+function scanReceived(){ scanMode="RECEIVED"; startScanner(); }
+
+/* START SCANNER */
+async function startScanner(){
+  if(!currentData.length){
+    alert("No data for selected date");
+    return;
+  }
+
+  document.getElementById("scannerWrap").style.display="block";
 
   codeReader = new ZXing.BrowserMultiFormatReader(
     new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS,
-    [ZXing.BarcodeFormat.CODE_128]]])
+      [ZXing.BarcodeFormat.CODE_128]]])
   );
 
   try{
-
     const devices = await codeReader.listVideoInputDevices();
-    const backCam = devices.find(d =>
-      d.label.toLowerCase().includes('back')
-    ) || devices[0];
+    const backCam =
+      devices.find(d=>d.label.toLowerCase().includes("back")) || devices[0];
 
     codeReader.decodeFromVideoDevice(
       backCam.deviceId,
-      'video',
-      (result, err) => {
+      "video",
+      (result, err)=>{
         if(result){
-          alert("SCANNED: " + result.text);
-          codeReader.reset();
+          handleScan(result.text);
         }
       }
     );
-
-  }catch(err){
-    alert("Camera start error ❌");
+  }catch(e){
+    alert("Camera start error");
+    stopScanner();
   }
+}
+
+/* STOP SCANNER */
+function stopScanner(){
+  if(codeReader){
+    codeReader.reset();
+    codeReader = null;
+  }
+  document.getElementById("scannerWrap").style.display="none";
+}
+
+/* HANDLE SCAN RESULT */
+function handleScan(code){
+  stopScanner();
+  code = String(code).trim();
+
+  let row = currentData.find(r=>r.caseno===code);
+  if(!row){ alert("Mismatch ❌"); return; }
+
+  if(scanMode==="SENT"){
+    if(row.sent){ alert("Already Sent ❌"); return; }
+    row.sent="YES";
+    alert("Sent ✅");
+  }
+
+  if(scanMode==="RECEIVED"){
+    if(!row.sent){ alert("Not Sent Yet ❌"); return; }
+    row.received="YES";
+    row.receiveddate=new Date().toLocaleDateString();
+    alert("Received ✅");
+  }
+
+  localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+  drawTable(currentData);
+}
+
+/* TABLE */
+function drawTable(data){
+  table.innerHTML="";
+  if(!data.length) return;
+  let h = Object.keys(data[0]);
+  table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+  data.forEach(r=>{
+    table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
+  });
 }
 </script>
 
