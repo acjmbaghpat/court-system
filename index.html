@@ -15,7 +15,7 @@ input,button{width:100%;padding:8px;margin:6px 0}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:4px;font-size:12px}
-#msg{margin-top:5px;color:green;font-weight:bold}
+#msg{color:green;font-weight:bold;margin-top:5px}
 </style>
 </head>
 
@@ -31,9 +31,9 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
   <div id="dateStatus"></div>
 </div>
 
-<!-- ================= STEP 2 : EXCEL (TESTING) ================= -->
+<!-- ================= STEP 2 & 3 : EXCEL UPLOAD + EXPAND ================= -->
 <div class="section">
-  <h3>STEP 2 – Excel Upload (TESTING)</h3>
+  <h3>STEP 2 – Excel Upload + Auto Expand</h3>
 
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
@@ -44,13 +44,13 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
 </div>
 
 <script>
-/* ========= STEP 1 FINAL ========= */
+/* ================= STEP 1 FINAL ================= */
 document.getElementById("workDate").addEventListener("change", function(){
   document.getElementById("dateStatus").innerHTML =
     "Working date set: <b>" + this.value + "</b>";
 });
 
-/* ========= STEP 2 TESTING ========= */
+/* ================= STEP 2 + 3 FINAL ================= */
 function uploadExcel(){
   let file = document.getElementById("excelFile").files[0];
   if(!file){
@@ -62,28 +62,52 @@ function uploadExcel(){
   reader.onload = function(e){
 
     let wb = XLSX.read(e.target.result, {type:"binary"});
-    let sheet = XLSX.utils.sheet_to_json(
+    let rawData = XLSX.utils.sheet_to_json(
       wb.Sheets[wb.SheetNames[0]]
     );
 
-    // ===== EXPAND PART =====
-    let expanded = sheet.map(r => ({
+    // ===== AUTO EXPAND DATA =====
+    let expandedData = rawData.map(r => ({
       srno: r.srno || "",
-      "case no": r["case no"] || "",
-      "party name": r["party name"] || "",
+      caseno: r["case no"] || "",
+      partyname: r["party name"] || "",
       section: r.section || "",
       ps: r.ps || "",
       sent: "",
       received: "",
-      "next date": "",
-      "received date": "",
+      nextdate: "",
+      receiveddate: "",
       remark: ""
     }));
 
-    alert("Excel Expanded Successfully");
+    document.getElementById("msg").innerText =
+      "Excel uploaded & expanded successfully";
 
-    drawTable(expanded);
+    drawTable(expandedData);
   };
 
   reader.readAsBinaryString(file);
 }
+
+/* ================= TABLE DRAW ================= */
+function drawTable(data){
+  let t = document.getElementById("table");
+  t.innerHTML = "";
+
+  if(data.length === 0) return;
+
+  let heads = Object.keys(data[0]);
+  t.innerHTML =
+    "<tr>" + heads.map(h=>"<th>"+h+"</th>").join("") + "</tr>";
+
+  data.forEach(r=>{
+    t.innerHTML +=
+      "<tr>" +
+      heads.map(h=>"<td>"+(r[h]||"")+"</td>").join("") +
+      "</tr>";
+  });
+}
+</script>
+
+</body>
+</html>
