@@ -2,56 +2,19 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court File App</title>
-
-<!-- Libraries -->
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<style>
-body{font-family:Arial;background:#f2f2f2;padding:10px}
-input,button{width:100%;padding:8px;margin:5px 0}
-button{background:#1976d2;color:white;border:none;border-radius:4px}
-#msg{position:fixed;top:10px;right:10px;color:#fff;padding:10px;display:none}
-.success{background:green}
-.error{background:red}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #999;padding:4px;font-size:12px}
-</style>
+<title>Step 1 Test</title>
 </head>
-
 <body>
 
-<h3>Court File Management</h3>
+<h3>STEP 1 – Date Select Test</h3>
 
-<!-- 1. Working Date -->
-<label>काम करने की तारीख चुनें</label>
 <input type="date" id="workDate">
 
-<!-- 2. Excel Upload -->
-<input type="file" id="excelFile">
-<button onclick="uploadExcel()">Excel Upload</button>
-
-<!-- 10. Search -->
-<input placeholder="Search (case / party / anything)" onkeyup="searchData(this.value)">
-
-<!-- 4–6. QR Scan -->
-<button onclick="startScan()">QR Scan (Send / Receive)</button>
-<div id="reader"></div>
-
-<!-- 7. Next Date -->
-<input type="date" id="nextDate">
-<button onclick="saveNextDate()">Next Date Save</button>
-
-<!-- 11. Download -->
-<button onclick="downloadExcel()">Excel Download</button>
-
-<div id="msg"></div>
-
-<table id="table"></table>
-
-<!-- 🔴 IMPORTANT: YAHAN SCRIPT.JS LOAD HOGA -->
-<script src="script.js"></script>
+<script>
+document.getElementById("workDate").addEventListener("change", function(){
+  alert("Date Selected: " + this.value);
+});
+</script>
 
 </body>
 </html>
