@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Court File App</title>
 
+<!-- Libraries -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -23,133 +24,34 @@ th,td{border:1px solid #999;padding:4px;font-size:12px}
 
 <h3>Court File Management</h3>
 
-<!-- STEP 1 DATE -->
-<label>Select Working Date</label>
-<input type="date" id="workDate" onchange="loadDateData()">
+<!-- 1. Working Date -->
+<label>काम करने की तारीख चुनें</label>
+<input type="date" id="workDate">
 
-<!-- STEP 2 EXCEL -->
+<!-- 2. Excel Upload -->
 <input type="file" id="excelFile">
-<button onclick="uploadExcel()">Upload Excel</button>
+<button onclick="uploadExcel()">Excel Upload</button>
 
-<!-- SEARCH -->
-<input placeholder="Search anything" onkeyup="searchData(this.value)">
+<!-- 10. Search -->
+<input placeholder="Search (case / party / anything)" onkeyup="searchData(this.value)">
 
-<!-- QR -->
-<button onclick="startScan()">Scan QR (Send / Receive)</button>
+<!-- 4–6. QR Scan -->
+<button onclick="startScan()">QR Scan (Send / Receive)</button>
 <div id="reader"></div>
 
-<!-- NEXT DATE -->
+<!-- 7. Next Date -->
 <input type="date" id="nextDate">
-<button onclick="saveNextDate()">Save Next Date</button>
+<button onclick="saveNextDate()">Next Date Save</button>
 
-<button onclick="downloadExcel()">Download Excel</button>
+<!-- 11. Download -->
+<button onclick="downloadExcel()">Excel Download</button>
 
 <div id="msg"></div>
 
 <table id="table"></table>
 
-<script>
-let html5QrCode;
-let currentData=[];
-
-function showMsg(t,c){
- let m=document.getElementById("msg");
- m.innerText=t;m.className=c;m.style.display="block";
- setTimeout(()=>m.style.display="none",2500);
-}
-
-function key(){
- let d=document.getElementById("workDate").value;
- if(!d){showMsg("Select Date First ❌","error");return null}
- return "court_"+d;
-}
-
-function loadDateData(){
- let k=key(); if(!k)return;
- currentData=JSON.parse(localStorage.getItem(k))||[];
- drawTable(currentData);
-}
-
-function uploadExcel(){
- let f=document.getElementById("excelFile").files[0];
- if(!f){showMsg("Select Excel ❌","error");return}
- let r=new FileReader();
- r.onload=e=>{
-  let wb=XLSX.read(e.target.result,{type:"binary"});
-  let sh=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-  currentData=sh.map(x=>({
-    srno:x.srno||"",
-    caseno:x["case no"]||"",
-    party:x["party name"]||"",
-    section:x.section||"",
-    ps:x.ps||"",
-    sent:"",
-    received:"",
-    nextDate:"",
-    receivedDate:"",
-    remark:""
-  }));
-  localStorage.setItem(key(),JSON.stringify(currentData));
-  drawTable(currentData);
-  showMsg("Excel File Has Been Uploaded ✅","success");
- };
- r.readAsBinaryString(f);
-}
-
-function startScan(){
- html5QrCode=new Html5Qrcode("reader");
- html5QrCode.start({facingMode:"environment"},{fps:10,qrbox:250},code=>{
-  let found=currentData.find(x=>x.caseno==code);
-  if(!found){
-    showMsg("Mismatch Problem ❌","error");
-  }else{
-    if(!found.sent){
-      found.sent="YES";
-      showMsg("Sent ✔","success");
-    }else{
-      found.received="YES";
-      found.receivedDate=new Date().toLocaleDateString();
-      showMsg("File Received ✔","success");
-    }
-    localStorage.setItem(key(),JSON.stringify(currentData));
-    drawTable(currentData);
-  }
-  html5QrCode.stop();
- });
-}
-
-function saveNextDate(){
- let nd=document.getElementById("nextDate").value;
- if(!nd){showMsg("Select Next Date ❌","error");return}
- currentData.forEach(x=>x.nextDate=nd);
- localStorage.setItem(key(),JSON.stringify(currentData));
- drawTable(currentData);
- showMsg("Next Date Mentioned ✔","success");
-}
-
-function searchData(v){
- let f=currentData.filter(x=>JSON.stringify(x).toLowerCase().includes(v.toLowerCase()));
- drawTable(f);
-}
-
-function drawTable(d){
- let t=document.getElementById("table");
- t.innerHTML="";
- if(d.length==0)return;
- let h=Object.keys(d[0]);
- t.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
- d.forEach(r=>{
-  t.innerHTML+="<tr>"+h.map(x=>"<td>"+(r[x]||"")+"</td>").join("")+"</tr>";
- });
-}
-
-function downloadExcel(){
- let ws=XLSX.utils.json_to_sheet(currentData);
- let wb=XLSX.utils.book_new();
- XLSX.utils.book_append_sheet(wb,ws,"Data");
- XLSX.writeFile(wb,"Court_Data.xlsx");
-}
-</script>
+<!-- 🔴 IMPORTANT: YAHAN SCRIPT.JS LOAD HOGA -->
+<script src="script.js"></script>
 
 </body>
 </html>
