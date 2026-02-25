@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Step 2 Test – Excel Upload</title>
+
+<!-- Excel library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+table{border-collapse:collapse;margin-top:10px;width:100%}
+th,td{border:1px solid #333;padding:4px;font-size:12px}
+</style>
+</head>
+<body>
+
+<h3>STEP 2 – Excel Upload Test</h3>
+
+<input type="file" id="excelFile">
+<button onclick="uploadExcel()">Upload Excel</button>
+
+<table id="table"></table>
+
+<script>
+function uploadExcel(){
+  let file = document.getElementById("excelFile").files[0];
+  if(!file){
+    alert("No file selected");
+    return;
+  }
+
+  let reader = new FileReader();
+  reader.onload = function(e){
+    let wb = XLSX.read(e.target.result, {type:"binary"});
+    let sheet = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+    alert("Excel Uploaded");
+
+    drawTable(sheet);
+  };
+  reader.readAsBinaryString(file);
+}
+
+function drawTable(data){
+  let t = document.getElementById("table");
+  t.innerHTML = "";
+  if(data.length === 0) return;
+
+  let heads = Object.keys(data[0]);
+  t.innerHTML = "<tr>" + heads.map(h=>"<th>"+h+"</th>").join("") + "</tr>";
+
+  data.forEach(r=>{
+    t.innerHTML += "<tr>" +
+      heads.map(h=>"<td>"+(r[h]||"")+"</td>").join("") +
+      "</tr>";
+  });
+}
+</script>
+
+</body>
+</html>
