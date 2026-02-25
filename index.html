@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court File App – Step 6</title>
+<title>Court File App – Auto Next Date on Receive</title>
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -13,9 +13,9 @@ body{font-family:Arial;background:#f4f4f4;margin:0;padding:10px}
 h3{margin:0 0 6px 0}
 input,button{width:100%;padding:10px;margin:6px 0;font-size:15px}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
+
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:5px;font-size:12px}
-tr.active{background:#e3f2fd}
 
 /* SCANNER */
 #scannerWrap{
@@ -24,6 +24,22 @@ tr.active{background:#e3f2fd}
 #video{width:100vw;height:80vh;object-fit:cover}
 #scanLine{position:absolute;top:40%;left:10%;width:80%;height:4px;background:red}
 #closeScan{background:#c62828}
+
+/* NEXT DATE POPUP */
+#nextDatePopup{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  z-index:1000;
+}
+#popupBox{
+  background:#fff;
+  margin:20% auto;
+  padding:15px;
+  width:90%;
+  border-radius:6px;
+}
 </style>
 </head>
 
@@ -46,15 +62,9 @@ tr.active{background:#e3f2fd}
   <button onclick="scanReceived()">Scan for RECEIVED</button>
 </div>
 
-<div class="section">
-  <h3>Next Date (Selected File)</h3>
-  <input type="date" id="nextDate">
-  <button onclick="saveNextDate()">Save Next Date</button>
-</div>
-
 <table id="table"></table>
 
-<!-- SCANNER -->
+<!-- FULL SCREEN SCANNER -->
 <div id="scannerWrap">
   <div style="position:relative;">
     <video id="video"></video>
@@ -63,21 +73,29 @@ tr.active{background:#e3f2fd}
   <button id="closeScan" onclick="stopScanner()">Close Scanner</button>
 </div>
 
+<!-- NEXT DATE POPUP -->
+<div id="nextDatePopup">
+  <div id="popupBox">
+    <h3>Next Date Select</h3>
+    <input type="date" id="nextDateInput">
+    <button onclick="saveNextDate()">Save Next Date</button>
+  </div>
+</div>
+
 <script>
 let currentData = [];
-let selectedIndex = null;
 let scanMode = "";
 let codeReader;
+let lastReceivedIndex = null;
 
 /* LOAD DATE DATA */
 workDate.addEventListener("change",()=>{
   let saved = localStorage.getItem("court_"+workDate.value);
   currentData = saved ? JSON.parse(saved) : [];
-  selectedIndex = null;
   drawTable(currentData);
 });
 
-/* EXCEL UPLOAD (COLUMN POSITION BASED) */
+/* EXCEL UPLOAD */
 function uploadExcel(){
   if(!workDate.value){ alert("Pehle date select karo"); return; }
   let file = excelFile.files[0];
@@ -111,44 +129,11 @@ function uploadExcel(){
   reader.readAsBinaryString(file);
 }
 
-/* TABLE CLICK (SELECT FILE) */
-function drawTable(data){
-  table.innerHTML="";
-  if(!data.length) return;
-  let h = Object.keys(data[0]);
-  table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
-
-  data.forEach((r,i)=>{
-    let tr = document.createElement("tr");
-    tr.onclick=()=>{
-      selectedIndex=i;
-      drawTable(data);
-    };
-    if(i===selectedIndex) tr.className="active";
-    tr.innerHTML=h.map(x=>"<td>"+(r[x]||"")+"</td>").join("");
-    table.appendChild(tr);
-  });
-}
-
-/* SAVE NEXT DATE */
-function saveNextDate(){
-  if(selectedIndex===null){
-    alert("Pehle table se file select karo");
-    return;
-  }
-  let nd = nextDate.value;
-  if(!nd){ alert("Next date select karo"); return; }
-
-  currentData[selectedIndex].nextdate = nd;
-  localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-  alert("Next Date Saved ✅");
-  drawTable(currentData);
-}
-
-/* SCAN FUNCTIONS */
+/* SCAN BUTTONS */
 function scanSent(){ scanMode="SENT"; startScanner(); }
 function scanReceived(){ scanMode="RECEIVED"; startScanner(); }
 
+/* START SCANNER */
 async function startScanner(){
   if(!currentData.length){ alert("No data"); return; }
   scannerWrap.style.display="block";
@@ -166,28 +151,68 @@ async function startScanner(){
   });
 }
 
+/* STOP SCANNER */
 function stopScanner(){
   if(codeReader){ codeReader.reset(); codeReader=null; }
   scannerWrap.style.display="none";
 }
 
+/* HANDLE SCAN */
 function handleScan(code){
   stopScanner();
-  let row = currentData.find(r=>r.caseno===code.trim());
-  if(!row){ alert("Mismatch ❌"); return; }
+  code = code.trim();
+
+  let idx = currentData.findIndex(r=>r.caseno===code);
+  if(idx === -1){ alert("Mismatch ❌"); return; }
+
+  let row = currentData[idx];
 
   if(scanMode==="SENT"){
     if(row.sent){ alert("Already Sent ❌"); return; }
-    row.sent="YES"; alert("Sent ✅");
+    row.sent="YES";
+    alert("Sent ✅");
   }
+
   if(scanMode==="RECEIVED"){
     if(!row.sent){ alert("Not Sent Yet ❌"); return; }
     row.received="YES";
     row.receiveddate=new Date().toLocaleDateString();
+    lastReceivedIndex = idx;
     alert("Received ✅");
+    openNextDatePopup();
   }
+
   localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
   drawTable(currentData);
+}
+
+/* NEXT DATE POPUP */
+function openNextDatePopup(){
+  nextDateInput.value="";
+  nextDatePopup.style.display="block";
+}
+
+function saveNextDate(){
+  let nd = nextDateInput.value;
+  if(!nd){ alert("Next Date select karo"); return; }
+
+  currentData[lastReceivedIndex].nextdate = nd;
+  localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
+
+  nextDatePopup.style.display="none";
+  alert("Next Date Saved ✅");
+  drawTable(currentData);
+}
+
+/* TABLE */
+function drawTable(data){
+  table.innerHTML="";
+  if(!data.length) return;
+  let h = Object.keys(data[0]);
+  table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+  data.forEach(r=>{
+    table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
+  });
 }
 </script>
 
