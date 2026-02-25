@@ -2,12 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Step 5 (Separate Scan)</title>
+<title>Court App – Column Index Based</title>
 
-<!-- Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<!-- QR -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
@@ -18,29 +15,26 @@ input,button{width:100%;padding:8px;margin:6px 0}
 button{background:#1976d2;color:#fff;border:none;border-radius:4px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th,td{border:1px solid #333;padding:4px;font-size:12px}
-#msg{color:green;font-weight:bold;margin-top:5px}
 #reader{width:100%;margin-top:10px}
 </style>
 </head>
 
 <body>
 
-<!-- STEP 1 : DATE -->
+<!-- STEP 1 DATE -->
 <div class="section">
   <h3>STEP 1 – Working Date</h3>
   <input type="date" id="workDate">
-  <div id="dateStatus"></div>
 </div>
 
-<!-- STEP 2–4 : EXCEL -->
+<!-- STEP 2 EXCEL -->
 <div class="section">
-  <h3>STEP 2–4 – Excel Upload + Save</h3>
+  <h3>STEP 2 – Excel Upload (Column Based)</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
-  <div id="msg"></div>
 </div>
 
-<!-- STEP 5 : QR -->
+<!-- STEP 5 QR -->
 <div class="section">
   <h3>STEP 5 – QR Scan</h3>
   <button onclick="startScan('SENT')">Scan for SENT</button>
@@ -53,58 +47,41 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
 <script>
 let currentData = [];
 let qr;
-let scanMode = ""; // SENT or RECEIVED
+let scanMode = "";
 
-/* ---------- DATE CHANGE ---------- */
-workDate.addEventListener("change", function(){
-  let d = this.value;
-  dateStatus.innerHTML = "Working date set: <b>" + d + "</b>";
-
-  let saved = localStorage.getItem("court_" + d);
-  if(saved){
-    currentData = JSON.parse(saved);
-    drawTable(currentData);
-  }else{
-    currentData = [];
-    table.innerHTML = "";
-  }
+/* DATE LOAD */
+workDate.addEventListener("change",()=>{
+  let d = workDate.value;
+  let saved = localStorage.getItem("court_"+d);
+  currentData = saved ? JSON.parse(saved) : [];
+  drawTable(currentData);
 });
 
-/* ---------- HELPER ---------- */
-function getVal(row, names){
-  for(let n of names){
-    if(row[n] !== undefined) return row[n];
-  }
-  return "";
-}
-
-/* ---------- EXCEL UPLOAD ---------- */
+/* EXCEL UPLOAD – COLUMN INDEX BASED */
 function uploadExcel(){
   if(!workDate.value){
     alert("Pehle date select karo");
     return;
   }
-
   let file = excelFile.files[0];
-  if(!file){
-    alert("No Excel selected");
-    return;
-  }
+  if(!file){ alert("No Excel selected"); return; }
 
   let reader = new FileReader();
-  reader.onload = function(e){
+  reader.onload = e=>{
     let wb = XLSX.read(e.target.result,{type:"binary"});
-    let raw = XLSX.utils.sheet_to_json(
+    let rows = XLSX.utils.sheet_to_json(
       wb.Sheets[wb.SheetNames[0]],
-      {defval:""}
+      {header:1, defval:""}
     );
 
-    currentData = raw.map(r=>({
-      srno: getVal(r,["srno","Sr No","sr no"]),
-      caseno: getVal(r,["case no","Case No","caseno"]),
-      partyname: getVal(r,["party name","Party Name"]),
-      section: getVal(r,["section","Section"]),
-      ps: getVal(r,["ps","PS"]),
+    rows.shift(); // remove header row
+
+    currentData = rows.map(r=>({
+      srno: r[0] || "",
+      caseno: r[1] || "",
+      partyname: r[2] || "",
+      section: r[3] || "",
+      ps: r[4] || "",
       sent: "",
       received: "",
       nextdate: "",
@@ -113,20 +90,19 @@ function uploadExcel(){
     }));
 
     localStorage.setItem("court_"+workDate.value, JSON.stringify(currentData));
-    msg.innerText = "Excel saved for "+workDate.value;
+    alert("Excel uploaded & data fetched correctly ✅");
     drawTable(currentData);
   };
   reader.readAsBinaryString(file);
 }
 
-/* ---------- QR SCAN ---------- */
+/* QR SCAN */
 function startScan(mode){
   if(!currentData.length){
     alert("No data for selected date");
     return;
   }
   scanMode = mode;
-
   qr = new Html5Qrcode("reader");
   qr.start(
     {facingMode:"environment"},
@@ -140,28 +116,18 @@ function startScan(mode){
 
 function handleScan(code){
   let row = currentData.find(r=>String(r.caseno)===String(code));
+  if(!row){ alert("Mismatch ❌"); return; }
 
-  if(!row){
-    alert("Mismatch Problem ❌");
-    return;
-  }
-
-  if(scanMode === "SENT"){
-    if(row.sent){
-      alert("Already Sent ❌");
-      return;
-    }
-    row.sent = "YES";
+  if(scanMode==="SENT"){
+    if(row.sent){ alert("Already Sent ❌"); return; }
+    row.sent="YES";
     alert("Sent ✅");
   }
 
-  if(scanMode === "RECEIVED"){
-    if(!row.sent){
-      alert("Not Sent Yet ❌");
-      return;
-    }
-    row.received = "YES";
-    row.receiveddate = new Date().toLocaleDateString();
+  if(scanMode==="RECEIVED"){
+    if(!row.sent){ alert("Not Sent Yet ❌"); return; }
+    row.received="YES";
+    row.receiveddate=new Date().toLocaleDateString();
     alert("Received ✅");
   }
 
@@ -169,18 +135,14 @@ function handleScan(code){
   drawTable(currentData);
 }
 
-/* ---------- TABLE ---------- */
+/* TABLE */
 function drawTable(data){
-  table.innerHTML = "";
+  table.innerHTML="";
   if(!data.length) return;
-
   let h = Object.keys(data[0]);
-  table.innerHTML =
-    "<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
-
+  table.innerHTML="<tr>"+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
   data.forEach(r=>{
-    table.innerHTML +=
-      "<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
+    table.innerHTML+="<tr>"+h.map(x=>"<td>"+r[x]+"</td>").join("")+"</tr>";
   });
 }
 </script>
