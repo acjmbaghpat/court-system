@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court App – Step Build</title>
+<title>Court App – Step 4</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -27,9 +27,9 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
   <div id="dateStatus"></div>
 </div>
 
-<!-- STEP 2 : EXCEL -->
+<!-- STEP 2–4 : EXCEL + STORAGE -->
 <div class="section">
-  <h3>STEP 2 – Excel Upload + Expand</h3>
+  <h3>STEP 2–4 – Excel Upload + Expand + Save (Phone)</h3>
   <input type="file" id="excelFile">
   <button onclick="uploadExcel()">Upload Excel</button>
   <div id="msg"></div>
@@ -37,10 +37,23 @@ th,td{border:1px solid #333;padding:4px;font-size:12px}
 </div>
 
 <script>
-/* -------- Calendar -------- */
+let currentData = [];
+
+/* -------- DATE CHANGE (LOAD DATA) -------- */
 document.getElementById("workDate").addEventListener("change", function(){
+  let d = this.value;
   document.getElementById("dateStatus").innerHTML =
-    "Working date set: <b>" + this.value + "</b>";
+    "Working date set: <b>" + d + "</b>";
+
+  let key = "court_" + d;
+  let saved = localStorage.getItem(key);
+  if(saved){
+    currentData = JSON.parse(saved);
+    drawTable(currentData);
+  }else{
+    currentData = [];
+    document.getElementById("table").innerHTML = "";
+  }
 });
 
 /* -------- Helper: column finder -------- */
@@ -51,8 +64,14 @@ function getVal(row, names){
   return "";
 }
 
-/* -------- Excel Upload + Expand -------- */
+/* -------- Excel Upload + Expand + SAVE -------- */
 function uploadExcel(){
+  let d = document.getElementById("workDate").value;
+  if(!d){
+    alert("Pehle date select karo");
+    return;
+  }
+
   let file = document.getElementById("excelFile").files[0];
   if(!file){
     alert("No Excel selected");
@@ -68,7 +87,7 @@ function uploadExcel(){
       {defval:""}
     );
 
-    let expandedData = raw.map(r => ({
+    currentData = raw.map(r => ({
       srno: getVal(r, ["srno","Sr No","SR NO","sr no"]),
       caseno: getVal(r, ["case no","Case No","CASE NO","caseno"]),
       partyname: getVal(r, ["party name","Party Name","PARTY NAME"]),
@@ -81,16 +100,19 @@ function uploadExcel(){
       remark: ""
     }));
 
-    document.getElementById("msg").innerText =
-      "Excel data loaded & expanded successfully";
+    // SAVE TO PHONE STORAGE (DATE-WISE)
+    localStorage.setItem("court_" + d, JSON.stringify(currentData));
 
-    drawTable(expandedData);
+    document.getElementById("msg").innerText =
+      "Excel data saved for " + d;
+
+    drawTable(currentData);
   };
 
   reader.readAsBinaryString(file);
 }
 
-/* -------- Table -------- */
+/* -------- TABLE -------- */
 function drawTable(data){
   let t = document.getElementById("table");
   t.innerHTML = "";
