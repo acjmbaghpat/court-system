@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Court File App – Search Added</title>
+<title>Court File App – Final</title>
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -52,6 +52,11 @@ th,td{border:1px solid #333;padding:5px;font-size:12px}
   <button onclick="scanReceived()">Scan for RECEIVED</button>
 </div>
 
+<div class="section">
+  <h3>Export</h3>
+  <button onclick="downloadExcel()">Download Excel</button>
+</div>
+
 <table id="table"></table>
 
 <!-- SCANNER -->
@@ -90,13 +95,9 @@ workDate.addEventListener("change",()=>{
 /* SEARCH */
 searchBox.addEventListener("input",()=>{
   let q = searchBox.value.toLowerCase();
-  if(!q){
-    filteredData = [...currentData];
-  }else{
-    filteredData = currentData.filter(r =>
-      Object.values(r).join(" ").toLowerCase().includes(q)
-    );
-  }
+  filteredData = q
+    ? currentData.filter(r => Object.values(r).join(" ").toLowerCase().includes(q))
+    : [...currentData];
   drawTable(filteredData);
 });
 
@@ -133,6 +134,23 @@ function uploadExcel(){
     drawTable(filteredData);
   };
   reader.readAsBinaryString(file);
+}
+
+/* DOWNLOAD EXCEL */
+function downloadExcel(){
+  if(!currentData.length){
+    alert("No data to download");
+    return;
+  }
+
+  let ws = XLSX.utils.json_to_sheet(currentData);
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Court Data");
+
+  XLSX.writeFile(
+    wb,
+    "Court_Data_" + workDate.value + ".xlsx"
+  );
 }
 
 /* SCAN BUTTONS */
