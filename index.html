@@ -39,7 +39,7 @@ gap:10px
 
 .dashboard{
 display:grid;
-grid-template-columns:1fr 1fr;
+grid-template-columns:1fr 1fr 1fr;
 gap:10px;
 margin-bottom:12px
 }
@@ -130,7 +130,6 @@ border-radius:12px
 <div class="card">📂 Total<br><span id="totalCount">0</span></div>
 <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
 <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-<div class="card">⏳ Pending<br><span id="pendingCount">0</span></div>
 
 </div>
 
@@ -193,16 +192,13 @@ function updateDashboard(){
 
 let total=currentData.length;
 
-let sent=currentData.filter(x=>x.sent==="YES").length;
+let sent=currentData.filter(x=>x.sent==="Sent").length;
 
-let received=currentData.filter(x=>x.received==="YES").length;
-
-let pending=total-received;
+let received=currentData.filter(x=>x.received==="Received").length;
 
 totalCount.innerText=total;
 sentCount.innerText=sent;
 receivedCount.innerText=received;
-pendingCount.innerText=pending;
 
 }
 
@@ -515,7 +511,7 @@ return;
 
 if(scanMode==="SENT"){
 
-if(currentData[idx].sent==="YES"){
+if(currentData[idx].sent==="Sent"){
 
 alert("Already Sent ❌");
 
@@ -525,7 +521,7 @@ return;
 
 }
 
-currentData[idx].sent="YES";
+currentData[idx].sent="Sent";
 
 saveToDB();
 
@@ -541,7 +537,7 @@ return;
 
 if(scanMode==="RECEIVED"){
 
-if(currentData[idx].sent!=="YES"){
+if(currentData[idx].sent!=="Sent"){
 
 alert("File Not Sent Yet ❌");
 
@@ -551,7 +547,7 @@ return;
 
 }
 
-if(currentData[idx].received==="YES"){
+if(currentData[idx].received==="Received"){
 
 alert("Already Received ❌");
 
@@ -561,7 +557,7 @@ return;
 
 }
 
-currentData[idx].received="YES";
+currentData[idx].received="Received";
 
 currentData[idx].receiveddate=new Date().toLocaleDateString();
 
