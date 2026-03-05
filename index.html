@@ -1,17 +1,16 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html>
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Court Diary</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"><script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><style>
-body{font-family:system-ui;background:#f2f4f7;margin:0;padding:8px}
+<title>Court File App – Final Pro</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-.section{
-background:#fff;
-padding:14px;
-margin-bottom:12px;
-border-radius:12px;
-box-shadow:0 2px 6px rgba(0,0,0,.08)
-}
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body{font-family:system-ui;background:#f2f4f7;margin:0;padding:8px}
+.section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 
 h3{margin:0 0 8px 0;font-size:15px}
 
@@ -38,6 +37,21 @@ grid-template-columns:1fr 1fr;
 gap:10px
 }
 
+.dashboard{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+margin-bottom:12px
+}
+
+.card{
+background:#fff;
+padding:10px;
+border-radius:10px;
+text-align:center;
+font-weight:600
+}
+
 .table-wrap{
 background:#fff;
 border-radius:12px;
@@ -57,7 +71,9 @@ padding:6px;
 text-align:left
 }
 
-th{background:#e9ecf1}
+th{
+background:#e9ecf1
+}
 
 #scannerWrap{
 position:fixed;
@@ -67,9 +83,10 @@ display:none;
 z-index:999
 }
 
-#reader{
+#video{
 width:100%;
-height:70vh
+height:75vh;
+object-fit:cover
 }
 
 #scanBox{
@@ -97,168 +114,468 @@ padding:20px;
 width:90%;
 border-radius:12px
 }
+</style>
+</head>
 
-#stats{
-display:grid;
-grid-template-columns:1fr 1fr 1fr 1fr;
-gap:6px;
-margin-top:6px
-}
+<body>
 
-.statbox{
-background:#f1f3f7;
-padding:8px;
-border-radius:8px;
-text-align:center;
-font-weight:600;
-font-size:13px
-}
-</style></head><body><div class="section">
+<div class="section">
 <h3>📅 Working Date</h3>
 <input type="date" id="workDate">
 <select id="versionSelect"></select>
-</div><div class="section">
-<h3>📤 Excel Upload</h3>
+</div>
+
+<div class="dashboard">
+
+<div class="card">📂 Total<br><span id="totalCount">0</span></div>
+<div class="card">📤 Sent<br><span id="sentCount">0</span></div>
+<div class="card">📥 Received<br><span id="receivedCount">0</span></div>
+<div class="card">⏳ Pending<br><span id="pendingCount">0</span></div>
+
+</div>
+
+<div class="section">
+<h3>📂 Excel Upload</h3>
 <input type="file" id="excelFile">
-<button onclick="uploadExcel()">⬆️ Upload Excel</button>
-</div><div class="section">
+<button onclick="uploadExcel()">📂 Upload Excel</button>
+</div>
+
+<div class="section">
 <h3>🔍 Search</h3>
-<input type="text" id="searchBox" placeholder="Search case / party">
-</div><div class="section">
-<h3>📷 Scan Files</h3>
+<input type="text" id="searchBox">
+</div>
+
+<div class="section">
+<h3>📸 Scan</h3>
+
 <div class="scan-actions">
 <button onclick="scanSent()">📤 Scan SENT</button>
 <button onclick="scanReceived()">📥 Scan RECEIVED</button>
 </div>
-</div><div class="section">
-<h3>📊 File Status</h3>
-<div id="stats"></div>
-</div><div class="section">
-<button onclick="downloadExcel()">📥 Download Excel</button>
-</div><div class="table-wrap">
+
+</div>
+
+<div class="section">
+<button onclick="downloadExcel()">⬇ Download Excel</button>
+</div>
+
+<div class="table-wrap">
 <table id="table"></table>
-</div><div id="scannerWrap">
-<div id="reader"></div>
+</div>
+
+<div id="scannerWrap">
+<div style="position:relative;">
+<video id="video"></video>
+<div id="scanBox"></div>
+</div>
 <button onclick="stopScanner()">❌ Close Scanner</button>
-</div><div id="nextDatePopup">
+</div>
+
+<div id="nextDatePopup">
 <div id="popupBox">
 <h3>📅 Select Next Date</h3>
 <input type="date" id="nextDateInput">
 <button onclick="saveNextDate()">💾 Save</button>
 </div>
-</div><script>
+</div>
 
+<script>
+
+let db;
 let currentData=[];
+let currentUploadId=null;
 let scanMode="";
 let lastReceivedIndex=null;
 let currentSearch="";
-let html5QrCode;
+let scannerInstance=null;
+
+function updateDashboard(){
+
+let total=currentData.length;
+
+let sent=currentData.filter(x=>x.sent==="YES").length;
+
+let received=currentData.filter(x=>x.received==="YES").length;
+
+let pending=total-received;
+
+totalCount.innerText=total;
+sentCount.innerText=sent;
+receivedCount.innerText=received;
+pendingCount.innerText=pending;
+
+}
+
+/* VIBRATION */
+
+function vibrate(type){
+
+if(!navigator.vibrate) return;
+
+if(type==="success") navigator.vibrate(200);
+if(type==="received") navigator.vibrate(300);
+if(type==="error") navigator.vibrate([100,100,100]);
+
+}
+
+/* DATABASE */
+
+let request=indexedDB.open("CourtDB",1);
+
+request.onupgradeneeded=e=>{
+let d=e.target.result;
+
+if(!d.objectStoreNames.contains("uploads")){
+d.createObjectStore("uploads",{keyPath:"id",autoIncrement:true});
+}
+
+};
+
+request.onsuccess=e=>{db=e.target.result};
+
+/* LOAD VERSION */
+
+workDate.addEventListener("change",loadVersions);
+
+function loadVersions(){
+
+let tx=db.transaction("uploads","readonly");
+
+let store=tx.objectStore("uploads");
+
+store.getAll().onsuccess=e=>{
+
+let data=e.target.result.filter(r=>r.date===workDate.value);
+
+versionSelect.innerHTML="";
+
+data.forEach(r=>{
+
+let opt=document.createElement("option");
+
+opt.value=r.id;
+
+opt.textContent="Upload "+r.version;
+
+versionSelect.appendChild(opt);
+
+});
+
+if(data.length){
+
+let latest=data[data.length-1];
+
+currentUploadId=latest.id;
+
+versionSelect.value=latest.id;
+
+currentData=latest.data;
+
+applySearch();
+
+updateDashboard();
+
+}
+
+};
+
+}
+
+versionSelect.addEventListener("change",()=>{
+
+currentUploadId=parseInt(versionSelect.value);
+
+let tx=db.transaction("uploads","readonly");
+
+tx.objectStore("uploads").get(currentUploadId).onsuccess=e=>{
+
+currentData=e.target.result.data;
+
+applySearch();
+
+updateDashboard();
+
+};
+
+});
+
+/* UPLOAD */
+
+function uploadExcel(){
+
+if(!workDate.value){
+
+alert("Select date");
+
+return;
+
+}
+
+let file=excelFile.files[0];
+
+if(!file){
+
+alert("Select Excel");
+
+return;
+
+}
+
+let reader=new FileReader();
+
+reader.onload=e=>{
+
+let wb=XLSX.read(e.target.result,{type:"binary"});
+
+let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+
+rows.shift();
+
+let newData=rows.map(r=>({
+
+srno:r[0]||"",
+
+caseno:String(r[1]||"").trim(),
+
+partyname:r[2]||"",
+
+section:r[3]||"",
+
+ps:r[4]||"",
+
+sent:"",
+
+received:"",
+
+receiveddate:"",
+
+nextdate:"",
+
+remark:""
+
+}));
+
+let tx=db.transaction("uploads","readwrite");
+
+let store=tx.objectStore("uploads");
+
+store.getAll().onsuccess=ev=>{
+
+let sameDate=ev.target.result.filter(r=>r.date===workDate.value);
+
+let version=sameDate.length+1;
+
+store.add({
+
+date:workDate.value,
+
+version:version,
+
+data:newData
+
+}).onsuccess=ev2=>{
+
+currentUploadId=ev2.target.result;
+
+currentData=newData;
+
+loadVersions();
+
+alert("Saved as Upload "+version);
+
+};
+
+};
+
+};
+
+reader.readAsBinaryString(file);
+
+}
+
+/* SAVE */
+
+function saveToDB(){
+
+let tx=db.transaction("uploads","readwrite");
+
+let store=tx.objectStore("uploads");
+
+store.get(currentUploadId).onsuccess=e=>{
+
+let record=e.target.result;
+
+record.data=currentData;
+
+store.put(record);
+
+};
+
+}
+
+/* SEARCH */
 
 searchBox.addEventListener("input",()=>{
+
 currentSearch=searchBox.value.toLowerCase();
+
 applySearch();
+
 });
 
 function applySearch(){
 
 let filtered=currentSearch
-? currentData.filter(r=>
-(r.caseno+" "+r.partyname+" "+r.section+" "+r.ps)
-.toLowerCase().includes(currentSearch))
+
+? currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(currentSearch))
+
 : currentData;
 
 drawTable(filtered);
-updateStats();
-}
 
-function updateStats(){
-
-let total=currentData.length;
-let sent=currentData.filter(r=>r.sent==="YES").length;
-let received=currentData.filter(r=>r.received==="YES").length;
-let pending=sent-received;
-
-stats.innerHTML=`
-<div class="statbox">Total<br>${total}</div>
-<div class="statbox">Sent<br>${sent}</div>
-<div class="statbox">Received<br>${received}</div>
-<div class="statbox">Pending<br>${pending}</div>
-`;
+updateDashboard();
 
 }
+
+/* SCAN */
 
 function scanSent(){
+
 scanMode="SENT";
+
 startScanner();
+
 }
 
 function scanReceived(){
+
 scanMode="RECEIVED";
+
 startScanner();
+
 }
 
-function startScanner(){
+async function startScanner(){
+
+if(!currentData.length){
+
+alert("No data");
+
+return;
+
+}
 
 scannerWrap.style.display="block";
 
-html5QrCode=new Html5Qrcode("reader");
+scannerInstance=new ZXing.BrowserQRCodeReader();
 
-html5QrCode.start(
-{facingMode:"environment"},
-{fps:10,qrbox:250},
-(decodedText)=>{
+const devices=await scannerInstance.listVideoInputDevices();
 
-html5QrCode.stop();
+const cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0];
+
+scannerInstance.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
+
+if(result){
+
+let code=result.text.trim();
+
+scannerInstance.reset();
+
 stopScanner();
-handleScan(decodedText);
+
+handleScan(code);
 
 }
-);
+
+});
 
 }
 
 function stopScanner(){
+
 scannerWrap.style.display="none";
+
 }
+
+/* HANDLE SCAN */
 
 function handleScan(code){
 
-let cleanCode=code.replace(/\s/g,"").toLowerCase();
-
-let idx=currentData.findIndex(r=>
-r.caseno.replace(/\s/g,"").toLowerCase()===cleanCode
-);
+let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
-alert("File Not Found");
+
+alert("File Not Found ❌");
+
+vibrate("error");
+
 return;
+
 }
 
 if(scanMode==="SENT"){
 
 if(currentData[idx].sent==="YES"){
-alert("Already Sent");
+
+alert("Already Sent ❌");
+
+vibrate("error");
+
 return;
+
 }
 
 currentData[idx].sent="YES";
+
+saveToDB();
+
 applySearch();
-alert("Sent");
+
+alert("Sent ✅");
+
+vibrate("success");
+
+return;
 
 }
 
 if(scanMode==="RECEIVED"){
 
-if(currentData[idx].received==="YES"){
-alert("Already Received");
+if(currentData[idx].sent!=="YES"){
+
+alert("File Not Sent Yet ❌");
+
+vibrate("error");
+
 return;
+
+}
+
+if(currentData[idx].received==="YES"){
+
+alert("Already Received ❌");
+
+vibrate("error");
+
+return;
+
 }
 
 currentData[idx].received="YES";
+
+currentData[idx].receiveddate=new Date().toLocaleDateString();
+
 lastReceivedIndex=idx;
 
-nextDatePopup.style.display="block";
+saveToDB();
+
 applySearch();
+
+alert("Received ✅");
+
+vibrate("received");
+
+nextDatePopup.style.display="block";
 
 }
 
@@ -267,16 +584,32 @@ applySearch();
 function saveNextDate(){
 
 currentData[lastReceivedIndex].nextdate=nextDateInput.value;
+
 nextDatePopup.style.display="none";
+
+saveToDB();
+
 applySearch();
 
 }
+
+/* REMARK */
+
+function updateRemark(i,val){
+
+currentData[i].remark=val;
+
+saveToDB();
+
+}
+
+/* TABLE */
 
 function drawTable(data){
 
 table.innerHTML="";
 
-if(!data.length)return;
+if(!data.length) return;
 
 let h=Object.keys(data[0]);
 
@@ -290,71 +623,48 @@ h.forEach(k=>{
 
 if(k==="remark"){
 
-row+=`<td><input value="${r[k]||""}" onchange="r.remark=this.value"></td>`;
+row+=`<td><input value="${r[k]}" onchange="updateRemark(${i},this.value)"></td>`;
 
-}else{
+}
 
-row+=`<td>${r[k]||""}</td>`;
+else{
+
+row+=`<td>${r[k]}</td>`;
 
 }
 
 });
 
 row+="</tr>";
+
 table.innerHTML+=row;
 
 });
 
 }
 
-function uploadExcel(){
-
-let file=excelFile.files[0];
-if(!file){alert("Select Excel");return;}
-
-let reader=new FileReader();
-
-reader.onload=e=>{
-
-let wb=XLSX.read(e.target.result,{type:"binary"});
-
-let rows=XLSX.utils.sheet_to_json(
-wb.Sheets[wb.SheetNames[0]],
-{header:1}
-);
-
-rows.shift();
-
-currentData=rows.map(r=>({
-srno:r[0]||"",
-caseno:String(r[1]||"").trim(),
-partyname:r[2]||"",
-section:r[3]||"",
-ps:r[4]||"",
-sent:"",
-received:"",
-nextdate:"",
-remark:""
-}));
-
-applySearch();
-
-};
-
-reader.readAsBinaryString(file);
-
-}
+/* DOWNLOAD */
 
 function downloadExcel(){
 
-let ws=XLSX.utils.json_to_sheet(currentData);
-let wb=XLSX.utils.book_new();
+if(!currentData.length){
 
-XLSX.utils.book_append_sheet(wb,ws,"Court");
+alert("No data");
 
-XLSX.writeFile(wb,"court_data.xlsx");
+return;
 
 }
 
-</script></body>
+let ws=XLSX.utils.json_to_sheet(currentData);
+
+let wb=XLSX.utils.book_new();
+
+XLSX.utils.book_append_sheet(wb,ws,"Court Data");
+
+XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx");
+
+}
+
+</script>
+</body>
 </html>
