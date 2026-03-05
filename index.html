@@ -12,19 +12,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
+
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
 
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
-h3{margin:0 0 6px 0}
-
 input,button,select{
-width:100%;
-padding:12px;
-margin-top:8px;
-font-size:15px;
-border-radius:10px;
-border:1px solid #ccc
+width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
 }
 
 button{background:#1976d2;color:#fff;border:none}
@@ -50,6 +44,7 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 #nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
 
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
+
 </style>
 </head>
 
@@ -124,25 +119,30 @@ projectId:"court-file-system"
 firebase.initializeApp(firebaseConfig);
 const dbCloud=firebase.firestore();
 
-/* DATA */
+/* VARIABLES */
 
 let currentData=[];
-let scanner=null;
-let scanMode="";
 let uploadVersion=1;
+let scanMode="";
+let scanner=null;
 let lastReceivedIndex=null;
+let unsubscribe=null;
+
+let lastScanCode="";
+let lastScanTime=0;
 
 /* STORAGE KEYS */
 
-function versionKey(){ return "versions_"+workDate.value }
-function dataKey(){ return "court_"+workDate.value+"_"+uploadVersion }
-function currentVersionKey(){ return "current_version_"+workDate.value }
+function versionKey(){return "versions_"+workDate.value}
+function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
+function currentVersionKey(){return "current_version_"+workDate.value}
 
 /* PAGE LOAD */
 
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0];
+
 workDate.value=today;
 
 loadVersions();
@@ -174,11 +174,9 @@ versionSelect.innerHTML="";
 
 let saved=localStorage.getItem(versionKey());
 
-if(!saved) return;
+if(!saved)return;
 
-let versions=JSON.parse(saved);
-
-versions.forEach(v=>{
+JSON.parse(saved).forEach(v=>{
 let opt=document.createElement("option");
 opt.value=v;
 opt.text="Upload "+v;
@@ -225,22 +223,34 @@ updateDashboard();
 /* FIREBASE */
 
 function syncFirebase(){
+
 let id=workDate.value+"_"+uploadVersion;
-dbCloud.collection("courtfiles").doc(id).set({data:currentData});
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData});
+
 }
 
 function loadFirebase(){
 
 let id=workDate.value+"_"+uploadVersion;
 
-dbCloud.collection("courtfiles")
+/* stop old listener */
+
+if(unsubscribe) unsubscribe();
+
+unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
 .onSnapshot(doc=>{
 
 if(doc.exists){
+
 currentData=doc.data().data;
+
 drawTable(currentData);
 updateDashboard();
+
 }
 
 });
@@ -300,6 +310,7 @@ wb.Sheets[wb.SheetNames[0]],
 rows.shift();
 
 currentData=rows.map(r=>({
+
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -310,6 +321,7 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
+
 }));
 
 let opt=document.createElement("option");
@@ -353,18 +365,40 @@ const devices=await scanner.listVideoInputDevices();
 const cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0];
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-if(result){handleScan(result.text.trim())}
+
+if(result){
+handleScan(result.text.trim());
+}
+
 });
+
 }
 
 function stopScanner(){
-if(scanner){scanner.reset();scanner=null}
-scannerWrap.style.display="none"
+
+if(scanner){
+scanner.reset();
+scanner=null;
+}
+
+scannerWrap.style.display="none";
+
 }
 
 /* SCAN */
 
 function handleScan(code){
+
+let now=Date.now();
+
+/* duplicate scan spam block */
+
+if(code===lastScanCode && now-lastScanTime<1000){
+return;
+}
+
+lastScanCode=code;
+lastScanTime=now;
 
 let idx=currentData.findIndex(r=>r.caseno===code);
 
@@ -398,6 +432,7 @@ return;
 }
 
 currentData[idx].received="Received";
+
 currentData[idx].receiveddate=new Date().toLocaleDateString();
 
 lastReceivedIndex=idx;
@@ -458,22 +493,26 @@ table.innerHTML="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
 data.forEach(r=>{
 
-let index=currentData.indexOf(r);
+let index=currentData.findIndex(x=>x.caseno===r.caseno);
 
 let row="<tr>";
 
 headers.forEach(k=>{
+
 if(k==="remark"){
 row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`;
 }else{
 row+=`<td>${r[k]||""}</td>`;
 }
+
 });
 
 row+="</tr>";
+
 table.innerHTML+=row;
 
 });
+
 }
 
 /* SEARCH */
@@ -505,5 +544,6 @@ XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx");
 }
 
 </script>
+
 </body>
 </html>
