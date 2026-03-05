@@ -12,39 +12,117 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
-body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
 
-.section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
+body{
+font-family:system-ui;
+background:#f2f4f7;
+margin:0;
+padding:10px
+}
+
+.section{
+background:#fff;
+padding:14px;
+margin-bottom:12px;
+border-radius:12px
+}
 
 h3{margin:0 0 6px 0}
 
 input,button,select{
-width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
+width:100%;
+padding:12px;
+margin-top:8px;
+font-size:15px;
+border-radius:10px;
+border:1px solid #ccc
 }
 
-button{background:#1976d2;color:#fff;border:none}
+button{
+background:#1976d2;
+color:#fff;
+border:none
+}
 
-.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.scan-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px
+}
 
-.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.dashboard{
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:10px;
+margin-bottom:12px
+}
 
-.card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
+.card{
+background:#fff;
+padding:10px;
+border-radius:10px;
+text-align:center;
+font-weight:600
+}
 
-.table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
+.table-wrap{
+background:#fff;
+border-radius:12px;
+overflow-x:auto
+}
 
-table{width:100%;border-collapse:collapse;min-width:900px}
+table{
+width:100%;
+border-collapse:collapse;
+min-width:900px
+}
 
-th,td{border:1px solid #ddd;padding:6px;font-size:13px}
+th,td{
+border:1px solid #ddd;
+padding:6px;
+font-size:13px
+}
 
-#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
+#scannerWrap{
+position:fixed;
+inset:0;
+background:#000;
+display:none;
+z-index:999
+}
 
-#video{width:100%;height:75vh;object-fit:cover}
+#video{
+width:100%;
+height:75vh;
+object-fit:cover
+}
 
-#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
+#scanBox{
+position:absolute;
+top:25%;
+left:15%;
+width:70%;
+height:50%;
+border:4px solid #00ff00;
+border-radius:10px
+}
 
-#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
+#nextDatePopup{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.6);
+display:none;
+z-index:1000
+}
 
-#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
+#popupBox{
+background:#fff;
+margin:25% auto;
+padding:20px;
+width:90%;
+border-radius:12px
+}
+
 </style>
 </head>
 
@@ -75,10 +153,12 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 
 <div class="section">
 <h3>📷 Scan</h3>
+
 <div class="scan-grid">
 <button onclick="scanSent()">📤 Scan SENT</button>
 <button onclick="scanReceived()">📥 Scan RECEIVED</button>
 </div>
+
 </div>
 
 <div class="section">
@@ -113,13 +193,11 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 const firebaseConfig={
 apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
 authDomain:"court-file-system.firebaseapp.com",
-projectId:"court-file-system",
-storageBucket:"court-file-system.firebasestorage.app",
-messagingSenderId:"188257418682",
-appId:"1:188257418682:web:65922359b09ac4d9323183"
+projectId:"court-file-system"
 };
 
 firebase.initializeApp(firebaseConfig);
+
 const dbCloud=firebase.firestore();
 
 /* DATA */
@@ -130,94 +208,186 @@ let scanMode="";
 let uploadVersion=1;
 let lastReceivedIndex=null;
 
-/* DEFAULT DATE */
+/* STORAGE KEYS */
+
+function versionKey(){
+return "versions_"+workDate.value;
+}
+
+function dataKey(){
+return "court_"+workDate.value+"_"+uploadVersion;
+}
+
+function currentVersionKey(){
+return "current_version_"+workDate.value;
+}
+
+/* PAGE LOAD */
 
 window.onload=()=>{
+
 let today=new Date().toISOString().split("T")[0];
+
 workDate.value=today;
+
 loadVersions();
+loadCurrentVersion();
 loadLocal();
 loadFirebase();
+
 }
 
 /* DASHBOARD */
 
 function updateDashboard(){
+
 totalCount.innerText=currentData.length;
+
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
+
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
-}
 
-/* LOCAL STORAGE */
-
-function saveLocal(){
-let key="court_"+workDate.value+"_"+uploadVersion;
-localStorage.setItem(key,JSON.stringify(currentData));
-}
-
-function loadLocal(){
-let key="court_"+workDate.value+"_"+uploadVersion;
-let saved=localStorage.getItem(key);
-if(saved){
-currentData=JSON.parse(saved);
-drawTable(currentData);
-updateDashboard();
-}
 }
 
 /* VERSION STORAGE */
 
 function saveVersions(){
-let key="versions_"+workDate.value;
-let versions=[];
+
+let arr=[];
+
 for(let i=0;i<versionSelect.options.length;i++){
-versions.push(versionSelect.options[i].value);
+arr.push(versionSelect.options[i].value);
 }
-localStorage.setItem(key,JSON.stringify(versions));
+
+localStorage.setItem(versionKey(),JSON.stringify(arr));
+
 }
 
 function loadVersions(){
 
 versionSelect.innerHTML="";
-let key="versions_"+workDate.value;
-let saved=localStorage.getItem(key);
-if(!saved)return;
+
+let saved=localStorage.getItem(versionKey());
+
+if(!saved) return;
 
 let versions=JSON.parse(saved);
 
 versions.forEach(v=>{
+
 let opt=document.createElement("option");
+
 opt.value=v;
 opt.text="Upload "+v;
+
 versionSelect.appendChild(opt);
+
 });
+
+}
+
+/* CURRENT VERSION */
+
+function saveCurrentVersion(){
+
+localStorage.setItem(currentVersionKey(),uploadVersion);
+
+}
+
+function loadCurrentVersion(){
+
+let v=localStorage.getItem(currentVersionKey());
+
+if(v){
+
+uploadVersion=parseInt(v);
+
+versionSelect.value=uploadVersion;
+
+}
+
+}
+
+/* LOCAL DATA */
+
+function saveLocal(){
+
+localStorage.setItem(dataKey(),JSON.stringify(currentData));
+
+}
+
+function loadLocal(){
+
+let saved=localStorage.getItem(dataKey());
+
+if(saved){
+
+currentData=JSON.parse(saved);
+
+drawTable(currentData);
+
+updateDashboard();
+
+}
 
 }
 
 /* FIREBASE */
 
 function syncFirebase(){
+
 let id=workDate.value+"_"+uploadVersion;
-dbCloud.collection("courtfiles").doc(id).set({data:currentData});
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData});
+
 }
 
 function loadFirebase(){
+
 let id=workDate.value+"_"+uploadVersion;
-dbCloud.collection("courtfiles").doc(id).onSnapshot(doc=>{
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
 if(doc.exists){
+
 currentData=doc.data().data;
+
 drawTable(currentData);
+
 updateDashboard();
+
 }
+
 });
+
 }
 
 /* DATE CHANGE */
 
 workDate.addEventListener("change",()=>{
+
 loadVersions();
+loadCurrentVersion();
 loadLocal();
 loadFirebase();
+
+});
+
+/* VERSION CHANGE */
+
+versionSelect.addEventListener("change",()=>{
+
+uploadVersion=parseInt(versionSelect.value);
+
+saveCurrentVersion();
+
+loadLocal();
+loadFirebase();
+
 });
 
 /* UPLOAD */
@@ -225,17 +395,27 @@ loadFirebase();
 function uploadExcel(){
 
 let file=excelFile.files[0];
-if(!file){alert("Select Excel");return;}
+
+if(!file){
+alert("Select Excel");
+return;
+}
 
 let reader=new FileReader();
 
 reader.onload=e=>{
 
 let wb=XLSX.read(e.target.result,{type:"binary"});
-let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+
+let rows=XLSX.utils.sheet_to_json(
+wb.Sheets[wb.SheetNames[0]],
+{header:1,defval:""}
+);
+
 rows.shift();
 
 currentData=rows.map(r=>({
+
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -246,18 +426,23 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
+
 }));
 
 let opt=document.createElement("option");
-opt.text="Upload "+uploadVersion;
+
 opt.value=uploadVersion;
+opt.text="Upload "+uploadVersion;
 
 versionSelect.appendChild(opt);
+
 versionSelect.value=uploadVersion;
 
 saveVersions();
+saveCurrentVersion();
 
 drawTable(currentData);
+
 updateDashboard();
 
 saveLocal();
@@ -270,20 +455,20 @@ uploadVersion++;
 };
 
 reader.readAsBinaryString(file);
+
 }
-
-/* VERSION CHANGE */
-
-versionSelect.addEventListener("change",()=>{
-uploadVersion=parseInt(versionSelect.value);
-loadLocal();
-loadFirebase();
-});
 
 /* SCANNER */
 
-function scanSent(){scanMode="SENT";startScanner()}
-function scanReceived(){scanMode="RECEIVED";startScanner()}
+function scanSent(){
+scanMode="SENT";
+startScanner();
+}
+
+function scanReceived(){
+scanMode="RECEIVED";
+startScanner();
+}
 
 async function startScanner(){
 
@@ -292,37 +477,58 @@ scannerWrap.style.display="block";
 scanner=new ZXing.BrowserQRCodeReader();
 
 const devices=await scanner.listVideoInputDevices();
+
 const cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0];
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-if(result){handleScan(result.text.trim())}
+
+if(result){
+
+handleScan(result.text.trim());
+
+}
+
 });
+
 }
 
 function stopScanner(){
-if(scanner){scanner.reset();scanner=null;}
-scannerWrap.style.display="none";
+
+if(scanner){
+scanner.reset();
+scanner=null;
 }
 
-/* SCAN */
+scannerWrap.style.display="none";
+
+}
+
+/* SCAN LOGIC */
 
 function handleScan(code){
 
 let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
+
 alert("❌ File Not Found");
+
 return;
+
 }
 
 if(scanMode==="SENT"){
 
 if(currentData[idx].sent==="Sent"){
+
 alert("❌ Already Sent");
+
 return;
+
 }
 
 currentData[idx].sent="Sent";
+
 alert("✅ Sent");
 
 }
@@ -330,16 +536,23 @@ alert("✅ Sent");
 if(scanMode==="RECEIVED"){
 
 if(currentData[idx].sent!=="Sent"){
+
 alert("❌ File Not Sent Yet");
+
 return;
+
 }
 
 if(currentData[idx].received==="Received"){
+
 alert("❌ Already Received");
+
 return;
+
 }
 
 currentData[idx].received="Received";
+
 currentData[idx].receiveddate=new Date().toLocaleDateString();
 
 lastReceivedIndex=idx;
@@ -351,8 +564,11 @@ nextDatePopup.style.display="block";
 }
 
 drawTable(currentData);
+
 updateDashboard();
+
 saveLocal();
+
 syncFirebase();
 
 }
@@ -366,21 +582,29 @@ currentData[lastReceivedIndex].nextdate=nextDateInput.value;
 nextDatePopup.style.display="none";
 
 drawTable(currentData);
+
 saveLocal();
+
 syncFirebase();
 
 }
 
 function closePopup(){
+
 nextDatePopup.style.display="none";
+
 }
 
 /* REMARK */
 
 function updateRemark(i,val){
+
 currentData[i].remark=val;
+
 saveLocal();
+
 syncFirebase();
+
 }
 
 /* TABLE */
@@ -389,7 +613,7 @@ function drawTable(data){
 
 table.innerHTML="";
 
-if(!data.length)return;
+if(!data.length) return;
 
 let headers=[
 "srno","caseno","partyname","section","ps",
@@ -401,39 +625,57 @@ table.innerHTML="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 data.forEach(r=>{
 
 let index=currentData.indexOf(r);
+
 let row="<tr>";
 
 headers.forEach(k=>{
+
 if(k==="remark"){
+
 row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`;
+
 }else{
+
 row+=`<td>${r[k]||""}</td>`;
+
 }
+
 });
 
 row+="</tr>";
+
 table.innerHTML+=row;
 
 });
+
 }
 
 /* SEARCH */
 
 searchBox.addEventListener("input",()=>{
+
 let q=searchBox.value.toLowerCase();
+
 let filtered=q
 ?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
 :currentData;
+
 drawTable(filtered);
+
 });
 
 /* DOWNLOAD */
 
 function downloadExcel(){
+
 let ws=XLSX.utils.json_to_sheet(currentData);
+
 let wb=XLSX.utils.book_new();
+
 XLSX.utils.book_append_sheet(wb,ws,"Court Data");
+
 XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx");
+
 }
 
 </script>
