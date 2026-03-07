@@ -145,10 +145,27 @@ let lastScanTime=0;
 /* VOICE */
 
 function speak(msg){
+
 let speech=new SpeechSynthesisUtterance(msg);
+
 speech.lang="en-IN";
 speech.rate=1;
+
 speechSynthesis.speak(speech);
+
+}
+
+function speakNextDate(dateStr){
+
+if(!dateStr) return;
+
+let d = new Date(dateStr);
+
+let day = d.getDate();
+let month = d.toLocaleString("en-IN",{month:"long"});
+
+speak("Next date " + day + " " + month);
+
 }
 
 /* STORAGE KEYS */
@@ -162,6 +179,7 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0];
+
 workDate.value=today;
 
 loadVersions();
@@ -192,6 +210,7 @@ function loadVersions(){
 versionSelect.innerHTML="";
 
 let saved=localStorage.getItem(versionKey());
+
 if(!saved)return;
 
 JSON.parse(saved).forEach(v=>{
@@ -309,6 +328,7 @@ return;
 }
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+
 if(!Array.isArray(versions)) versions=[];
 
 uploadVersion=versions.length+1;
@@ -342,6 +362,7 @@ remark:""
 }));
 
 let opt=document.createElement("option");
+
 opt.value=uploadVersion;
 opt.text="Upload "+uploadVersion;
 
@@ -380,12 +401,7 @@ scanner=new ZXing.BrowserQRCodeReader();
 
 const devices=await scanner.listVideoInputDevices();
 
-let cam=devices.find(d=>
-(d.label||"").toLowerCase().includes("back")||
-(d.label||"").toLowerCase().includes("environment")
-);
-
-if(!cam) cam=devices[devices.length-1];
+let cam=devices[devices.length-1];
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
 
@@ -468,6 +484,13 @@ speak("File received");
 
 nextDatePopup.style.display="block";
 
+setTimeout(()=>{
+nextDateInput.focus();
+if(nextDateInput.showPicker){
+nextDateInput.showPicker();
+}
+},200);
+
 }
 
 drawTable(currentData);
@@ -506,11 +529,16 @@ function saveNextDate(){
 
 if(lastReceivedIndex==null) return;
 
-currentData[lastReceivedIndex].nextdate=nextDateInput.value;
+let selectedDate = nextDateInput.value;
+
+currentData[lastReceivedIndex].nextdate = selectedDate;
 
 nextDatePopup.style.display="none";
 
 drawTable(currentData);
+
+speakNextDate(selectedDate);
+
 saveLocal();
 syncFirebase();
 
