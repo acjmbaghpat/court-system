@@ -12,22 +12,48 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
+
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
+
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
-input,button,select{width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc}
+
+input,button,select{
+width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
+}
+
 button{background:#1976d2;color:#fff;border:none}
+
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
 .dashboard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+
 .card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
+
 .table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
+
 table{width:100%;border-collapse:collapse;min-width:900px}
+
 th,td{border:1px solid #ddd;padding:6px;font-size:13px}
+
 #scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
+
 #video{width:100%;height:75vh;object-fit:cover}
-#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
+
 #nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
+
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
-.highlight{background:#fff3cd}
+
+.highlight{
+background:#fff3cd;
+animation:blink 1s 3;
+}
+
+@keyframes blink{
+0%{background:#fff3cd}
+50%{background:#ffffff}
+100%{background:#fff3cd}
+}
+
 </style>
 </head>
 
@@ -40,32 +66,32 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 </div>
 
 <div class="dashboard">
-<div class="card">Total<br><span id="totalCount">0</span></div>
-<div class="card">Sent<br><span id="sentCount">0</span></div>
-<div class="card">Received<br><span id="receivedCount">0</span></div>
+<div class="card">📁 Total<br><span id="totalCount">0</span></div>
+<div class="card">📤 Sent<br><span id="sentCount">0</span></div>
+<div class="card">📥 Received<br><span id="receivedCount">0</span></div>
 </div>
 
 <div class="section">
-<h3>Excel Upload</h3>
+<h3>📥 Excel Upload</h3>
 <input type="file" id="excelFile">
 <button onclick="uploadExcel()">Upload Excel</button>
 </div>
 
 <div class="section">
-<h3>Search</h3>
+<h3>🔍 Search</h3>
 <input type="text" id="searchBox">
 </div>
 
 <div class="section">
-<h3>Scan</h3>
+<h3>📷 Scan</h3>
 <div class="scan-grid">
-<button onclick="scanSent()">Scan SENT</button>
-<button onclick="scanReceived()">Scan RECEIVED</button>
+<button onclick="scanSent()">📤 Scan SENT</button>
+<button onclick="scanReceived()">📥 Scan RECEIVED</button>
 </div>
 </div>
 
 <div class="section">
-<button onclick="downloadExcel()">Download Excel</button>
+<button onclick="downloadExcel()">📤 Download Excel</button>
 </div>
 
 <div class="table-wrap">
@@ -74,12 +100,12 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 
 <div id="scannerWrap">
 <video id="video"></video>
-<button onclick="stopScanner()">Close</button>
+<button onclick="stopScanner()">Close Scanner</button>
 </div>
 
 <div id="nextDatePopup">
 <div id="popupBox">
-<h3>Next Date</h3>
+<h3>📅 Next Date</h3>
 <input type="date" id="nextDateInput">
 <button onclick="saveNextDate()">Save</button>
 <button onclick="closePopup()">Cancel</button>
@@ -99,35 +125,21 @@ projectId:"court-file-system"
 firebase.initializeApp(firebaseConfig);
 const dbCloud=firebase.firestore();
 
-/* INDEXED DB */
-
-let db;
-
-let request=indexedDB.open("CourtFilesDB",1);
-
-request.onupgradeneeded=function(e){
-db=e.target.result;
-db.createObjectStore("files",{keyPath:"id"});
-};
-
-request.onsuccess=function(e){
-db=e.target.result;
-loadLocal();
-};
-
 /* VARIABLES */
 
 let currentData=[];
 let uploadVersion=1;
-let scanner=null;
 let scanMode="";
+let scanner=null;
 let lastReceivedIndex=null;
+let unsubscribe=null;
 
 /* VOICE */
 
 function speak(msg){
 let speech=new SpeechSynthesisUtterance(msg);
 speech.lang="en-IN";
+speech.rate=1;
 speechSynthesis.speak(speech);
 }
 
@@ -138,40 +150,14 @@ let month=d.toLocaleString("en-IN",{month:"long"});
 speak("Next date "+day+" "+month);
 }
 
-/* STORAGE */
+/* PAGE LOAD */
 
-function saveLocal(){
+window.onload=()=>{
 
-let tx=db.transaction("files","readwrite");
-let store=tx.objectStore("files");
+let today=new Date().toISOString().split("T")[0];
+workDate.value=today;
 
-let id=workDate.value+"_"+uploadVersion;
-
-store.put({
-id:id,
-data:currentData
-});
-
-}
-
-function loadLocal(){
-
-let tx=db.transaction("files","readonly");
-let store=tx.objectStore("files");
-
-let id=workDate.value+"_"+uploadVersion;
-
-let req=store.get(id);
-
-req.onsuccess=function(){
-
-if(req.result){
-currentData=req.result.data;
-drawTable(currentData);
-updateDashboard();
-}
-
-};
+loadFirebase();
 
 }
 
@@ -183,12 +169,47 @@ sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
 }
 
-/* EXCEL UPLOAD */
+/* FIREBASE */
+
+function syncFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData});
+
+}
+
+function loadFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+if(unsubscribe) unsubscribe();
+
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
+if(doc.exists){
+currentData=doc.data().data;
+drawTable(currentData);
+updateDashboard();
+}
+
+});
+
+}
+
+/* UPLOAD */
 
 function uploadExcel(){
 
 let file=excelFile.files[0];
-if(!file) return;
+if(!file){
+alert("Select Excel");
+return;
+}
 
 let reader=new FileReader();
 
@@ -220,7 +241,7 @@ remark:""
 
 drawTable(currentData);
 updateDashboard();
-saveLocal();
+syncFirebase();
 
 };
 
@@ -249,7 +270,7 @@ if(result) handleScan(result.text.trim());
 }
 
 function stopScanner(){
-scanner.reset();
+if(scanner){scanner.reset();scanner=null;}
 scannerWrap.style.display="none";
 }
 
@@ -260,13 +281,14 @@ function handleScan(code){
 let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
-alert("File Not Found");
+alert("❌ File Not Found");
 speak("File not found");
 return;
 }
 
 if(scanMode==="SENT"){
 currentData[idx].sent="Sent";
+alert("✅ Sent");
 speak("File sent");
 }
 
@@ -277,6 +299,7 @@ currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
 
 lastReceivedIndex=idx;
 
+alert("📥 Received");
 speak("File received");
 
 nextDatePopup.style.display="block";
@@ -289,8 +312,31 @@ if(nextDateInput.showPicker) nextDateInput.showPicker();
 }
 
 drawTable(currentData);
+scrollToFile(code);
+
 updateDashboard();
-saveLocal();
+syncFirebase();
+
+}
+
+/* SCROLL */
+
+function scrollToFile(caseno){
+
+let row=document.getElementById("row_"+caseno);
+
+if(!row) return;
+
+row.scrollIntoView({
+behavior:"smooth",
+block:"center"
+});
+
+row.classList.add("highlight");
+
+setTimeout(()=>{
+row.classList.remove("highlight");
+},3000);
 
 }
 
@@ -298,17 +344,17 @@ saveLocal();
 
 function saveNextDate(){
 
-let date=nextDateInput.value;
+let selectedDate=nextDateInput.value;
 
-currentData[lastReceivedIndex].nextdate=date;
+currentData[lastReceivedIndex].nextdate=selectedDate;
 
 nextDatePopup.style.display="none";
 
 drawTable(currentData);
 
-speakNextDate(date);
+speakNextDate(selectedDate);
 
-saveLocal();
+syncFirebase();
 
 }
 
@@ -320,19 +366,29 @@ nextDatePopup.style.display="none"
 
 function drawTable(data){
 
-let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
+if(!data.length){
+table.innerHTML="";
+return;
+}
+
+let headers=[
+"srno","caseno","partyname","section","ps",
+"sent","received","receiveddate","nextdate","remark"
+];
 
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
 data.forEach(r=>{
 
-html+="<tr>";
+let row=`<tr id="row_${r.caseno}">`;
 
 headers.forEach(k=>{
-html+="<td>"+(r[k]||"")+"</td>";
+row+=`<td>${r[k]||""}</td>`;
 });
 
-html+="</tr>";
+row+="</tr>";
+
+html+=row;
 
 });
 
@@ -359,6 +415,7 @@ drawTable(filtered);
 function downloadExcel(){
 
 let ws=XLSX.utils.json_to_sheet(currentData);
+
 let wb=XLSX.utils.book_new();
 
 XLSX.utils.book_append_sheet(wb,ws,"Court Data");
