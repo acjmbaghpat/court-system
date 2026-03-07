@@ -62,7 +62,6 @@ animation:blink 1s 3;
 <div class="section">
 <h3>📅 Working Date</h3>
 <input type="date" id="workDate">
-<select id="versionSelect"></select>
 </div>
 
 <div class="dashboard">
@@ -134,6 +133,10 @@ let scanner=null;
 let lastReceivedIndex=null;
 let unsubscribe=null;
 
+function dataKey(){
+return "court_"+workDate.value+"_"+uploadVersion;
+}
+
 /* VOICE */
 
 function speak(msg){
@@ -150,23 +153,25 @@ let month=d.toLocaleString("en-IN",{month:"long"});
 speak("Next date "+day+" "+month);
 }
 
-/* PAGE LOAD */
+/* STORAGE */
 
-window.onload=()=>{
+function saveLocal(){
+localStorage.setItem(dataKey(),JSON.stringify(currentData));
+}
 
-let today=new Date().toISOString().split("T")[0];
-workDate.value=today;
+function loadLocal(){
 
-loadFirebase();
+let saved=localStorage.getItem(dataKey());
+
+if(saved){
+
+currentData=JSON.parse(saved);
+
+drawTable(currentData);
+updateDashboard();
 
 }
 
-/* DASHBOARD */
-
-function updateDashboard(){
-totalCount.innerText=currentData.length;
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
 }
 
 /* FIREBASE */
@@ -177,7 +182,7 @@ let id=workDate.value+"_"+uploadVersion;
 
 dbCloud.collection("courtfiles")
 .doc(id)
-.set({data:currentData});
+.set({data:currentData},{merge:true});
 
 }
 
@@ -192,20 +197,49 @@ unsubscribe=dbCloud.collection("courtfiles")
 .onSnapshot(doc=>{
 
 if(doc.exists){
+
 currentData=doc.data().data;
+
 drawTable(currentData);
 updateDashboard();
+
+saveLocal();
+
 }
 
 });
 
 }
 
-/* UPLOAD */
+/* PAGE LOAD */
+
+window.onload=()=>{
+
+let today=new Date().toISOString().split("T")[0];
+
+workDate.value=today;
+
+loadLocal();
+loadFirebase();
+
+}
+
+/* DASHBOARD */
+
+function updateDashboard(){
+
+totalCount.innerText=currentData.length;
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+
+}
+
+/* EXCEL UPLOAD */
 
 function uploadExcel(){
 
 let file=excelFile.files[0];
+
 if(!file){
 alert("Select Excel");
 return;
@@ -241,6 +275,8 @@ remark:""
 
 drawTable(currentData);
 updateDashboard();
+
+saveLocal();
 syncFirebase();
 
 };
@@ -270,8 +306,14 @@ if(result) handleScan(result.text.trim());
 }
 
 function stopScanner(){
-if(scanner){scanner.reset();scanner=null;}
+
+if(scanner){
+scanner.reset();
+scanner=null;
+}
+
 scannerWrap.style.display="none";
+
 }
 
 /* SCAN */
@@ -295,6 +337,7 @@ speak("File sent");
 if(scanMode==="RECEIVED"){
 
 currentData[idx].received="Received";
+
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
 
 lastReceivedIndex=idx;
@@ -315,6 +358,8 @@ drawTable(currentData);
 scrollToFile(code);
 
 updateDashboard();
+
+saveLocal();
 syncFirebase();
 
 }
@@ -354,6 +399,7 @@ drawTable(currentData);
 
 speakNextDate(selectedDate);
 
+saveLocal();
 syncFirebase();
 
 }
