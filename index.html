@@ -45,6 +45,17 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
 
+.highlight{
+background:#fff3cd;
+animation:blink 1s 3;
+}
+
+@keyframes blink{
+0%{background:#fff3cd}
+50%{background:#ffffff}
+100%{background:#fff3cd}
+}
+
 </style>
 </head>
 
@@ -131,6 +142,15 @@ let unsubscribe=null;
 let lastScanCode="";
 let lastScanTime=0;
 
+/* VOICE */
+
+function speak(msg){
+let speech=new SpeechSynthesisUtterance(msg);
+speech.lang="en-IN";
+speech.rate=1;
+speechSynthesis.speak(speech);
+}
+
 /* STORAGE KEYS */
 
 function versionKey(){return "versions_"+workDate.value}
@@ -142,7 +162,6 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0];
-
 workDate.value=today;
 
 loadVersions();
@@ -173,7 +192,6 @@ function loadVersions(){
 versionSelect.innerHTML="";
 
 let saved=localStorage.getItem(versionKey());
-
 if(!saved)return;
 
 JSON.parse(saved).forEach(v=>{
@@ -228,15 +246,13 @@ let id=workDate.value+"_"+uploadVersion;
 
 dbCloud.collection("courtfiles")
 .doc(id)
-.set({data:currentData});
+.set({data:currentData},{merge:true});
 
 }
 
 function loadFirebase(){
 
 let id=workDate.value+"_"+uploadVersion;
-
-/* stop old listener */
 
 if(unsubscribe) unsubscribe();
 
@@ -293,6 +309,7 @@ return;
 }
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+if(!Array.isArray(versions)) versions=[];
 
 uploadVersion=versions.length+1;
 
@@ -325,7 +342,6 @@ remark:""
 }));
 
 let opt=document.createElement("option");
-
 opt.value=uploadVersion;
 opt.text="Upload "+uploadVersion;
 
@@ -333,6 +349,7 @@ versionSelect.appendChild(opt);
 versionSelect.value=uploadVersion;
 
 versions.push(uploadVersion);
+
 saveVersions(versions);
 saveCurrentVersion();
 
@@ -362,7 +379,13 @@ scannerWrap.style.display="block";
 scanner=new ZXing.BrowserQRCodeReader();
 
 const devices=await scanner.listVideoInputDevices();
-const cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0];
+
+let cam=devices.find(d=>
+(d.label||"").toLowerCase().includes("back")||
+(d.label||"").toLowerCase().includes("environment")
+);
+
+if(!cam) cam=devices[devices.length-1];
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
 
@@ -391,8 +414,6 @@ function handleScan(code){
 
 let now=Date.now();
 
-/* duplicate scan spam block */
-
 if(code===lastScanCode && now-lastScanTime<1000){
 return;
 }
@@ -404,6 +425,7 @@ let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
 alert("❌ File Not Found");
+speak("File not found");
 return;
 }
 
@@ -411,11 +433,13 @@ if(scanMode==="SENT"){
 
 if(currentData[idx].sent==="Sent"){
 alert("❌ Already Sent");
+speak("Already sent");
 return;
 }
 
 currentData[idx].sent="Sent";
 alert("✅ Sent");
+speak("File sent");
 
 }
 
@@ -423,36 +447,64 @@ if(scanMode==="RECEIVED"){
 
 if(currentData[idx].sent!=="Sent"){
 alert("❌ File Not Sent Yet");
+speak("File not sent yet");
 return;
 }
 
 if(currentData[idx].received==="Received"){
 alert("❌ Already Received");
+speak("Already received");
 return;
 }
 
 currentData[idx].received="Received";
 
-currentData[idx].receiveddate=new Date().toLocaleDateString();
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
 
 lastReceivedIndex=idx;
 
 alert("📥 Received");
+speak("File received");
 
 nextDatePopup.style.display="block";
 
 }
 
 drawTable(currentData);
+scrollToFile(code);
+
 updateDashboard();
 saveLocal();
 syncFirebase();
 
 }
 
+/* SCROLL */
+
+function scrollToFile(caseno){
+
+let row=document.getElementById("row_"+caseno);
+
+if(!row) return;
+
+row.scrollIntoView({
+behavior:"smooth",
+block:"center"
+});
+
+row.classList.add("highlight");
+
+setTimeout(()=>{
+row.classList.remove("highlight");
+},3000);
+
+}
+
 /* NEXT DATE */
 
 function saveNextDate(){
+
+if(lastReceivedIndex==null) return;
 
 currentData[lastReceivedIndex].nextdate=nextDateInput.value;
 
@@ -480,22 +532,23 @@ syncFirebase();
 
 function drawTable(data){
 
+if(!data.length){
 table.innerHTML="";
-
-if(!data.length)return;
+return;
+}
 
 let headers=[
 "srno","caseno","partyname","section","ps",
 "sent","received","receiveddate","nextdate","remark"
 ];
 
-table.innerHTML="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
 data.forEach(r=>{
 
 let index=currentData.findIndex(x=>x.caseno===r.caseno);
 
-let row="<tr>";
+let row=`<tr id="row_${r.caseno}">`;
 
 headers.forEach(k=>{
 
@@ -509,9 +562,11 @@ row+=`<td>${r[k]||""}</td>`;
 
 row+="</tr>";
 
-table.innerHTML+=row;
+html+=row;
 
 });
+
+table.innerHTML=html;
 
 }
 
