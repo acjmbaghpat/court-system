@@ -124,14 +124,12 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE USAGE */
+/* STORAGE SHOW */
 
 function updateStorageUsage(){
 
 let total = 5 * 1024 * 1024;
-
 let used = new Blob(Object.values(localStorage)).size;
-
 let percent = ((used/total)*100).toFixed(1);
 
 storageUsage.innerText = percent + "%";
@@ -143,7 +141,6 @@ storageUsage.innerText = percent + "%";
 function deleteOldData(){
 
 let today = new Date();
-
 let deleted = 0;
 
 for(let i=localStorage.length-1;i>=0;i--){
@@ -153,9 +150,7 @@ let key = localStorage.key(i);
 if(key.startsWith("court_")){
 
 let parts = key.split("_");
-
 let dateStr = parts[1];
-
 let fileDate = new Date(dateStr);
 
 let diff = (today - fileDate)/(1000*60*60*24);
@@ -163,7 +158,6 @@ let diff = (today - fileDate)/(1000*60*60*24);
 if(diff > 15){
 
 localStorage.removeItem(key);
-
 deleted++;
 
 }
@@ -177,6 +171,8 @@ alert(deleted + " records deleted");
 updateStorageUsage();
 
 }
+
+/* ---- यहाँ से नीचे आपका पूरा original script unchanged है ---- */
 
 /* FIREBASE */
 
@@ -224,7 +220,7 @@ updateStorageUsage();
 
 }
 
-/* बाकी आपका पूरा original script वही रहेगा */
+/* यहाँ से नीचे आपका पूरा original code वही रहेगा */
 
 </script>
 
