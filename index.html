@@ -97,6 +97,10 @@ animation:blink 1s 3;
 <button onclick="downloadExcel()">📤 Download Excel</button>
 </div>
 
+<div class="section">
+<button onclick="deleteOldData()">🧹 Delete Data Older Than 15 Days</button>
+</div>
+
 <div class="table-wrap">
 <table id="table"></table>
 </div>
@@ -120,68 +124,57 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE CHECK */
+/* STORAGE USAGE */
 
-function getStoragePercent(){
+function updateStorageUsage(){
 
 let total = 5 * 1024 * 1024;
+
 let used = new Blob(Object.values(localStorage)).size;
 
-let percent = (used/total)*100;
+let percent = ((used/total)*100).toFixed(1);
 
-storageUsage.innerText = percent.toFixed(1)+"%";
-
-return percent;
+storageUsage.innerText = percent + "%";
 
 }
 
-function downloadBackupExcel(data,name){
+/* DELETE OLD DATA */
 
-let ws = XLSX.utils.json_to_sheet(data);
+function deleteOldData(){
 
-let wb = XLSX.utils.book_new();
+let today = new Date();
 
-XLSX.utils.book_append_sheet(wb,ws,"Backup");
-
-XLSX.writeFile(wb,name+"_backup.xlsx");
-
-}
-
-function autoCleanup(){
-
-let percent=getStoragePercent();
-
-if(percent<80)return;
-
-let today=new Date();
+let deleted = 0;
 
 for(let i=localStorage.length-1;i>=0;i--){
 
-let key=localStorage.key(i);
+let key = localStorage.key(i);
 
 if(key.startsWith("court_")){
 
-let parts=key.split("_");
+let parts = key.split("_");
 
-let dateStr=parts[1];
+let dateStr = parts[1];
 
-let fileDate=new Date(dateStr);
+let fileDate = new Date(dateStr);
 
-let diff=(today-fileDate)/(1000*60*60*24);
+let diff = (today - fileDate)/(1000*60*60*24);
 
-if(diff>20){
-
-let data=JSON.parse(localStorage.getItem(key));
-
-downloadBackupExcel(data,key);
+if(diff > 15){
 
 localStorage.removeItem(key);
 
-}
+deleted++;
 
 }
 
 }
+
+}
+
+alert(deleted + " records deleted");
+
+updateStorageUsage();
 
 }
 
@@ -227,44 +220,13 @@ loadCurrentVersion();
 loadLocal();
 loadFirebase();
 
-getStoragePercent();
-autoCleanup();
+updateStorageUsage();
 
 }
 
-/* FIREBASE SYNC (SAFE VERSION) */
-
-function loadFirebase(){
-
-let id=workDate.value+"_"+uploadVersion;
-
-if(unsubscribe) unsubscribe();
-
-unsubscribe=dbCloud.collection("courtfiles")
-.doc(id)
-.onSnapshot(doc=>{
-
-if(doc.exists && doc.data().data){
-
-if(currentData.length===0){
-
-currentData=doc.data().data;
-
-drawTable(currentData);
-updateDashboard();
-
-saveLocal();
-
-}
-
-}
-
-});
-
-}
-
-/* --- बाकी पूरा आपका original code same रहेगा --- */
+/* बाकी आपका पूरा original script वही रहेगा */
 
 </script>
+
 </body>
 </html>
