@@ -124,16 +124,13 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE SHOW */
+/* STORAGE USAGE */
 
 function updateStorageUsage(){
-
 let total = 5 * 1024 * 1024;
 let used = new Blob(Object.values(localStorage)).size;
 let percent = ((used/total)*100).toFixed(1);
-
 storageUsage.innerText = percent + "%";
-
 }
 
 /* DELETE OLD DATA */
@@ -156,10 +153,8 @@ let fileDate = new Date(dateStr);
 let diff = (today - fileDate)/(1000*60*60*24);
 
 if(diff > 15){
-
 localStorage.removeItem(key);
 deleted++;
-
 }
 
 }
@@ -167,12 +162,9 @@ deleted++;
 }
 
 alert(deleted + " records deleted");
-
 updateStorageUsage();
 
 }
-
-/* ---- यहाँ से नीचे आपका पूरा original script unchanged है ---- */
 
 /* FIREBASE */
 
@@ -220,7 +212,209 @@ updateStorageUsage();
 
 }
 
-/* यहाँ से नीचे आपका पूरा original code वही रहेगा */
+/* ---- नीचे आपका पूरा original code unchanged है ---- */
+
+/* DASHBOARD */
+
+function updateDashboard(){
+
+totalCount.innerText=currentData.length;
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+
+}
+
+/* VERSION STORAGE */
+
+function saveVersions(arr){
+localStorage.setItem(versionKey(),JSON.stringify(arr));
+}
+
+function loadVersions(){
+
+versionSelect.innerHTML="";
+
+let saved=localStorage.getItem(versionKey());
+
+if(!saved)return;
+
+JSON.parse(saved).forEach(v=>{
+let opt=document.createElement("option");
+opt.value=v;
+opt.text="Upload "+v;
+versionSelect.appendChild(opt);
+});
+
+}
+
+/* CURRENT VERSION */
+
+function saveCurrentVersion(){
+localStorage.setItem(currentVersionKey(),uploadVersion);
+}
+
+function loadCurrentVersion(){
+
+let v=localStorage.getItem(currentVersionKey());
+
+if(v){
+uploadVersion=parseInt(v);
+versionSelect.value=uploadVersion;
+}
+
+}
+
+/* LOCAL DATA */
+
+function saveLocal(){
+localStorage.setItem(dataKey(),JSON.stringify(currentData));
+updateStorageUsage();
+}
+
+function loadLocal(){
+
+let saved=localStorage.getItem(dataKey());
+
+if(saved){
+currentData=JSON.parse(saved);
+drawTable(currentData);
+updateDashboard();
+}
+
+}
+
+/* FIREBASE */
+
+function syncFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData},{merge:true});
+
+}
+
+function loadFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+if(unsubscribe) unsubscribe();
+
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
+if(doc.exists){
+
+currentData=doc.data().data;
+
+drawTable(currentData);
+updateDashboard();
+
+}
+
+});
+
+}
+
+/* DATE CHANGE */
+
+workDate.addEventListener("change",()=>{
+
+loadVersions();
+loadCurrentVersion();
+loadLocal();
+loadFirebase();
+
+});
+
+/* VERSION CHANGE */
+
+versionSelect.addEventListener("change",()=>{
+
+uploadVersion=parseInt(versionSelect.value);
+
+saveCurrentVersion();
+
+loadLocal();
+loadFirebase();
+
+});
+
+/* UPLOAD */
+
+function uploadExcel(){
+
+let file=excelFile.files[0];
+
+if(!file){
+alert("Select Excel");
+return;
+}
+
+let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+
+if(!Array.isArray(versions)) versions=[];
+
+uploadVersion=versions.length+1;
+
+let reader=new FileReader();
+
+reader.onload=e=>{
+
+let wb=XLSX.read(e.target.result,{type:"binary"});
+
+let rows=XLSX.utils.sheet_to_json(
+wb.Sheets[wb.SheetNames[0]],
+{header:1,defval:""}
+);
+
+rows.shift();
+
+currentData=rows.map(r=>({
+
+srno:r[0]||"",
+caseno:String(r[1]||"").trim(),
+partyname:r[2]||"",
+section:r[3]||"",
+ps:r[4]||"",
+sent:"",
+received:"",
+receiveddate:"",
+nextdate:"",
+remark:""
+
+}));
+
+let opt=document.createElement("option");
+
+opt.value=uploadVersion;
+opt.text="Upload "+uploadVersion;
+
+versionSelect.appendChild(opt);
+versionSelect.value=uploadVersion;
+
+versions.push(uploadVersion);
+
+saveVersions(versions);
+saveCurrentVersion();
+
+drawTable(currentData);
+updateDashboard();
+
+saveLocal();
+syncFirebase();
+
+excelFile.value="";
+
+};
+
+reader.readAsBinaryString(file);
+
+}
+
+/* बाकी आपका scanner, table, search, download code same रहेगा */
 
 </script>
 
