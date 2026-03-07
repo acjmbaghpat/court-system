@@ -12,22 +12,75 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
+
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
+
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
-input,button,select{width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc}
+
+input,button,select{
+width:100%;
+padding:12px;
+margin-top:8px;
+font-size:15px;
+border-radius:10px;
+border:1px solid #ccc
+}
+
 button{background:#1976d2;color:#fff;border:none}
+
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
 .dashboard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+
 .card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
+
 .table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
+
 table{width:100%;border-collapse:collapse;min-width:900px}
+
 th,td{border:1px solid #ddd;padding:6px;font-size:13px}
-#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
-#video{width:100%;height:75vh;object-fit:cover}
-#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
-#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
-.highlight{background:#fff3cd;animation:blink 1s 3}
-@keyframes blink{0%{background:#fff3cd}50%{background:#fff}100%{background:#fff3cd}}
+
+#scannerWrap{
+position:fixed;
+inset:0;
+background:#000;
+display:none;
+z-index:999
+}
+
+#video{
+width:100%;
+height:75vh;
+object-fit:cover
+}
+
+#nextDatePopup{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.6);
+display:none;
+z-index:1000
+}
+
+#popupBox{
+background:#fff;
+margin:25% auto;
+padding:20px;
+width:90%;
+border-radius:12px
+}
+
+.highlight{
+background:#fff3cd;
+animation:blink 1s 3
+}
+
+@keyframes blink{
+0%{background:#fff3cd}
+50%{background:#fff}
+100%{background:#fff3cd}
+}
+
 </style>
 </head>
 
@@ -103,8 +156,8 @@ const dbCloud=firebase.firestore();
 
 let currentData=[];
 let uploadVersion=1;
-let scanMode="";
 let scanner=null;
+let scanMode="";
 let lastReceivedIndex=null;
 let unsubscribe=null;
 
@@ -134,7 +187,6 @@ speak("Next date "+day+" "+month);
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0];
-
 workDate.value=today;
 
 loadVersions();
@@ -166,7 +218,9 @@ localStorage.setItem(versionKey(),JSON.stringify(arr));
 }
 
 function loadVersions(){
+
 versionSelect.innerHTML="";
+
 let saved=localStorage.getItem(versionKey());
 if(!saved)return;
 
@@ -176,6 +230,7 @@ opt.value=v;
 opt.text="Upload "+v;
 versionSelect.appendChild(opt);
 });
+
 }
 
 function saveCurrentVersion(){
@@ -183,28 +238,41 @@ localStorage.setItem(currentVersionKey(),uploadVersion);
 }
 
 function loadCurrentVersion(){
+
 let v=localStorage.getItem(currentVersionKey());
+
 if(v){
 uploadVersion=parseInt(v);
 versionSelect.value=uploadVersion;
 }
+
 }
 
 versionSelect.addEventListener("change",()=>{
+
 uploadVersion=parseInt(versionSelect.value);
+
 saveCurrentVersion();
+
 loadLocal();
 loadFirebase();
+
 });
 
 /* FIREBASE */
 
 function syncFirebase(){
+
 let id=workDate.value+"_"+uploadVersion;
-dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true});
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData},{merge:true});
+
 }
 
 function loadFirebase(){
+
 let id=workDate.value+"_"+uploadVersion;
 
 if(unsubscribe) unsubscribe();
@@ -212,21 +280,30 @@ if(unsubscribe) unsubscribe();
 unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
 .onSnapshot(doc=>{
-if(doc.exists){
+
+if(doc.exists && doc.data().data){
+
 currentData=doc.data().data;
+
 drawTable(currentData);
 updateDashboard();
+
 saveLocal();
+
 }
+
 });
+
 }
 
 /* DASHBOARD */
 
 function updateDashboard(){
+
 totalCount.innerText=currentData.length;
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+
 }
 
 /* EXCEL UPLOAD */
@@ -234,7 +311,11 @@ receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
 function uploadExcel(){
 
 let file=excelFile.files[0];
-if(!file){alert("Select Excel");return;}
+
+if(!file){
+alert("Select Excel");
+return;
+}
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
 
@@ -245,11 +326,16 @@ let reader=new FileReader();
 reader.onload=e=>{
 
 let wb=XLSX.read(e.target.result,{type:"binary"});
-let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+
+let rows=XLSX.utils.sheet_to_json(
+wb.Sheets[wb.SheetNames[0]],
+{header:1}
+);
 
 rows.shift();
 
 currentData=rows.map(r=>({
+
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -260,17 +346,28 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
+
 }));
 
 versions.push(uploadVersion);
+
 saveVersions(versions);
 saveCurrentVersion();
+
+let opt=document.createElement("option");
+opt.value=uploadVersion;
+opt.text="Upload "+uploadVersion;
+versionSelect.appendChild(opt);
+
+versionSelect.value=uploadVersion;
 
 drawTable(currentData);
 updateDashboard();
 
 saveLocal();
 syncFirebase();
+
+excelFile.value="";
 
 };
 
@@ -299,8 +396,14 @@ if(result) handleScan(result.text.trim());
 }
 
 function stopScanner(){
-if(scanner){scanner.reset();scanner=null;}
+
+if(scanner){
+scanner.reset();
+scanner=null;
+}
+
 scannerWrap.style.display="none";
+
 }
 
 /* SCAN */
@@ -310,25 +413,26 @@ function handleScan(code){
 let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
-alert("❌ File Not Found");
+alert("File Not Found");
 speak("File not found");
 return;
 }
 
 if(scanMode==="SENT"){
 currentData[idx].sent="Sent";
-alert("✅ Sent");
+alert("Sent");
 speak("File sent");
 }
 
 if(scanMode==="RECEIVED"){
 
 currentData[idx].received="Received";
+
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
 
 lastReceivedIndex=idx;
 
-alert("📥 Received");
+alert("Received");
 speak("File received");
 
 nextDatePopup.style.display="block";
