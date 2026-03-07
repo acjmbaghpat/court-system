@@ -103,12 +103,12 @@ const dbCloud=firebase.firestore();
 
 let currentData=[];
 let uploadVersion=1;
-let scanner=null;
 let scanMode="";
+let scanner=null;
 let lastReceivedIndex=null;
 let unsubscribe=null;
 
-/* VERSION STORAGE */
+/* STORAGE KEYS */
 
 function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
@@ -119,7 +119,6 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 function speak(msg){
 let speech=new SpeechSynthesisUtterance(msg);
 speech.lang="en-IN";
-speech.rate=1;
 speechSynthesis.speak(speech);
 }
 
@@ -133,12 +132,16 @@ speak("Next date "+day+" "+month);
 /* PAGE LOAD */
 
 window.onload=()=>{
+
 let today=new Date().toISOString().split("T")[0];
+
 workDate.value=today;
+
 loadVersions();
 loadCurrentVersion();
 loadLocal();
 loadFirebase();
+
 }
 
 /* LOCAL STORAGE */
@@ -156,7 +159,7 @@ updateDashboard();
 }
 }
 
-/* VERSION FUNCTIONS */
+/* VERSION SYSTEM */
 
 function saveVersions(arr){
 localStorage.setItem(versionKey(),JSON.stringify(arr));
@@ -166,6 +169,7 @@ function loadVersions(){
 versionSelect.innerHTML="";
 let saved=localStorage.getItem(versionKey());
 if(!saved)return;
+
 JSON.parse(saved).forEach(v=>{
 let opt=document.createElement("option");
 opt.value=v;
@@ -186,17 +190,27 @@ versionSelect.value=uploadVersion;
 }
 }
 
+versionSelect.addEventListener("change",()=>{
+uploadVersion=parseInt(versionSelect.value);
+saveCurrentVersion();
+loadLocal();
+loadFirebase();
+});
+
 /* FIREBASE */
 
 function syncFirebase(){
 let id=workDate.value+"_"+uploadVersion;
-dbCloud.collection("courtfiles").doc(id).set({data:currentData});
+dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true});
 }
 
 function loadFirebase(){
 let id=workDate.value+"_"+uploadVersion;
+
 if(unsubscribe) unsubscribe();
-unsubscribe=dbCloud.collection("courtfiles").doc(id)
+
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
 .onSnapshot(doc=>{
 if(doc.exists){
 currentData=doc.data().data;
@@ -223,6 +237,7 @@ let file=excelFile.files[0];
 if(!file){alert("Select Excel");return;}
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+
 uploadVersion=versions.length+1;
 
 let reader=new FileReader();
@@ -340,13 +355,14 @@ syncFirebase();
 function scrollToFile(caseno){
 
 let row=document.getElementById("row_"+caseno);
+
 if(!row)return;
 
 row.scrollIntoView({behavior:"smooth",block:"center"});
 
 row.classList.add("highlight");
 
-setTimeout(()=>{row.classList.remove("highlight")},3000);
+setTimeout(()=>row.classList.remove("highlight"),3000);
 
 }
 
@@ -369,7 +385,9 @@ syncFirebase();
 
 }
 
-function closePopup(){nextDatePopup.style.display="none"}
+function closePopup(){
+nextDatePopup.style.display="none"
+}
 
 /* TABLE */
 
