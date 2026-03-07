@@ -18,12 +18,7 @@ body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
 input,button,select{
-width:100%;
-padding:12px;
-margin-top:8px;
-font-size:15px;
-border-radius:10px;
-border:1px solid #ccc
+width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
 }
 
 button{background:#1976d2;color:#fff;border:none}
@@ -44,15 +39,20 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 
 #video{width:100%;height:75vh;object-fit:cover}
 
+#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
+
 #nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
 
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
 
-.highlight{background:#fff3cd;animation:blink 1s 3}
+.highlight{
+background:#fff3cd;
+animation:blink 1s 3;
+}
 
 @keyframes blink{
 0%{background:#fff3cd}
-50%{background:#fff}
+50%{background:#ffffff}
 100%{background:#fff3cd}
 }
 
@@ -101,7 +101,10 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 </div>
 
 <div id="scannerWrap">
+<div style="position:relative">
 <video id="video"></video>
+<div id="scanBox"></div>
+</div>
 <button onclick="stopScanner()">Close Scanner</button>
 </div>
 
@@ -131,10 +134,39 @@ const dbCloud=firebase.firestore();
 
 let currentData=[];
 let uploadVersion=1;
-let scanner=null;
 let scanMode="";
+let scanner=null;
 let lastReceivedIndex=null;
 let unsubscribe=null;
+
+let lastScanCode="";
+let lastScanTime=0;
+
+/* VOICE */
+
+function speak(msg){
+
+let speech=new SpeechSynthesisUtterance(msg);
+
+speech.lang="en-IN";
+speech.rate=1;
+
+speechSynthesis.speak(speech);
+
+}
+
+function speakNextDate(dateStr){
+
+if(!dateStr) return;
+
+let d = new Date(dateStr);
+
+let day = d.getDate();
+let month = d.toLocaleString("en-IN",{month:"long"});
+
+speak("Next date " + day + " " + month);
+
+}
 
 /* STORAGE KEYS */
 
@@ -142,22 +174,32 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* LOCAL STORAGE */
+/* PAGE LOAD */
 
-function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData));
+window.onload=()=>{
+
+let today=new Date().toISOString().split("T")[0];
+
+workDate.value=today;
+
+loadVersions();
+loadCurrentVersion();
+loadLocal();
+loadFirebase();
+
 }
 
-function loadLocal(){
-let saved=localStorage.getItem(dataKey());
-if(saved){
-currentData=JSON.parse(saved);
-drawTable(currentData);
-updateDashboard();
-}
+/* DASHBOARD */
+
+function updateDashboard(){
+
+totalCount.innerText=currentData.length;
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+
 }
 
-/* VERSION SYSTEM */
+/* VERSION STORAGE */
 
 function saveVersions(arr){
 localStorage.setItem(versionKey(),JSON.stringify(arr));
@@ -168,6 +210,7 @@ function loadVersions(){
 versionSelect.innerHTML="";
 
 let saved=localStorage.getItem(versionKey());
+
 if(!saved)return;
 
 JSON.parse(saved).forEach(v=>{
@@ -178,6 +221,8 @@ versionSelect.appendChild(opt);
 });
 
 }
+
+/* CURRENT VERSION */
 
 function saveCurrentVersion(){
 localStorage.setItem(currentVersionKey(),uploadVersion);
@@ -194,11 +239,23 @@ versionSelect.value=uploadVersion;
 
 }
 
-versionSelect.addEventListener("change",()=>{
-uploadVersion=parseInt(versionSelect.value);
-saveCurrentVersion();
-loadLocal();
-});
+/* LOCAL DATA */
+
+function saveLocal(){
+localStorage.setItem(dataKey(),JSON.stringify(currentData));
+}
+
+function loadLocal(){
+
+let saved=localStorage.getItem(dataKey());
+
+if(saved){
+currentData=JSON.parse(saved);
+drawTable(currentData);
+updateDashboard();
+}
+
+}
 
 /* FIREBASE */
 
@@ -212,37 +269,67 @@ dbCloud.collection("courtfiles")
 
 }
 
-/* PAGE LOAD */
+function loadFirebase(){
 
-window.onload=()=>{
+let id=workDate.value+"_"+uploadVersion;
 
-let today=new Date().toISOString().split("T")[0];
+if(unsubscribe) unsubscribe();
 
-workDate.value=today;
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
+if(doc.exists){
+
+currentData=doc.data().data;
+
+drawTable(currentData);
+updateDashboard();
+
+}
+
+});
+
+}
+
+/* DATE CHANGE */
+
+workDate.addEventListener("change",()=>{
 
 loadVersions();
 loadCurrentVersion();
 loadLocal();
+loadFirebase();
 
-}
+});
 
-/* DASHBOARD */
+/* VERSION CHANGE */
 
-function updateDashboard(){
-totalCount.innerText=currentData.length;
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
-}
+versionSelect.addEventListener("change",()=>{
 
-/* EXCEL UPLOAD */
+uploadVersion=parseInt(versionSelect.value);
+
+saveCurrentVersion();
+
+loadLocal();
+loadFirebase();
+
+});
+
+/* UPLOAD */
 
 function uploadExcel(){
 
 let file=excelFile.files[0];
 
-if(!file){alert("Select Excel");return;}
+if(!file){
+alert("Select Excel");
+return;
+}
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+
+if(!Array.isArray(versions)) versions=[];
 
 uploadVersion=versions.length+1;
 
@@ -254,7 +341,7 @@ let wb=XLSX.read(e.target.result,{type:"binary"});
 
 let rows=XLSX.utils.sheet_to_json(
 wb.Sheets[wb.SheetNames[0]],
-{header:1}
+{header:1,defval:""}
 );
 
 rows.shift();
@@ -274,14 +361,18 @@ remark:""
 
 }));
 
+let opt=document.createElement("option");
+
+opt.value=uploadVersion;
+opt.text="Upload "+uploadVersion;
+
+versionSelect.appendChild(opt);
+versionSelect.value=uploadVersion;
+
 versions.push(uploadVersion);
 
 saveVersions(versions);
 saveCurrentVersion();
-
-loadVersions();
-
-versionSelect.value=uploadVersion;
 
 drawTable(currentData);
 updateDashboard();
@@ -297,33 +388,156 @@ reader.readAsBinaryString(file);
 
 }
 
-/* REMARK UPDATE */
+/* SCANNER */
 
-function updateRemark(i,val){
+function scanSent(){scanMode="SENT";startScanner()}
+function scanReceived(){scanMode="RECEIVED";startScanner()}
 
-currentData[i].remark=val;
+async function startScanner(){
 
-saveLocal();
-syncFirebase();
+scannerWrap.style.display="block";
+
+scanner=new ZXing.BrowserQRCodeReader();
+
+const devices=await scanner.listVideoInputDevices();
+
+let cam=devices[devices.length-1];
+
+scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
+
+if(result){
+handleScan(result.text.trim());
+}
+
+});
+
+}
+
+function stopScanner(){
+
+if(scanner){
+scanner.reset();
+scanner=null;
+}
+
+scannerWrap.style.display="none";
 
 }
 
 /* SCAN */
 
-function scanSent(){scanMode="SENT"}
-function scanReceived(){scanMode="RECEIVED"}
+function handleScan(code){
+
+let now=Date.now();
+
+if(code===lastScanCode && now-lastScanTime<1000){
+return;
+}
+
+lastScanCode=code;
+lastScanTime=now;
+
+let idx=currentData.findIndex(r=>r.caseno===code);
+
+if(idx===-1){
+alert("❌ File Not Found");
+speak("File not found");
+return;
+}
+
+if(scanMode==="SENT"){
+
+if(currentData[idx].sent==="Sent"){
+alert("❌ Already Sent");
+speak("Already sent");
+return;
+}
+
+currentData[idx].sent="Sent";
+alert("✅ Sent");
+speak("File sent");
+
+}
+
+if(scanMode==="RECEIVED"){
+
+if(currentData[idx].sent!=="Sent"){
+alert("❌ File Not Sent Yet");
+speak("File not sent yet");
+return;
+}
+
+if(currentData[idx].received==="Received"){
+alert("❌ Already Received");
+speak("Already received");
+return;
+}
+
+currentData[idx].received="Received";
+
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
+
+lastReceivedIndex=idx;
+
+alert("📥 Received");
+speak("File received");
+
+nextDatePopup.style.display="block";
+
+setTimeout(()=>{
+nextDateInput.focus();
+if(nextDateInput.showPicker){
+nextDateInput.showPicker();
+}
+},200);
+
+}
+
+drawTable(currentData);
+scrollToFile(code);
+
+updateDashboard();
+saveLocal();
+syncFirebase();
+
+}
+
+/* SCROLL */
+
+function scrollToFile(caseno){
+
+let row=document.getElementById("row_"+caseno);
+
+if(!row) return;
+
+row.scrollIntoView({
+behavior:"smooth",
+block:"center"
+});
+
+row.classList.add("highlight");
+
+setTimeout(()=>{
+row.classList.remove("highlight");
+},3000);
+
+}
 
 /* NEXT DATE */
 
 function saveNextDate(){
 
-let date=nextDateInput.value;
+if(lastReceivedIndex==null) return;
 
-currentData[lastReceivedIndex].nextdate=date;
+let selectedDate = nextDateInput.value;
+
+currentData[lastReceivedIndex].nextdate = selectedDate;
 
 nextDatePopup.style.display="none";
 
 drawTable(currentData);
+
+speakNextDate(selectedDate);
 
 saveLocal();
 syncFirebase();
@@ -334,11 +548,22 @@ function closePopup(){
 nextDatePopup.style.display="none"
 }
 
+/* REMARK */
+
+function updateRemark(i,val){
+currentData[i].remark=val;
+saveLocal();
+syncFirebase();
+}
+
 /* TABLE */
 
 function drawTable(data){
 
-if(!data.length){table.innerHTML="";return;}
+if(!data.length){
+table.innerHTML="";
+return;
+}
 
 let headers=[
 "srno","caseno","partyname","section","ps",
@@ -347,23 +572,18 @@ let headers=[
 
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
-data.forEach((r,i)=>{
+data.forEach(r=>{
+
+let index=currentData.findIndex(x=>x.caseno===r.caseno);
 
 let row=`<tr id="row_${r.caseno}">`;
 
 headers.forEach(k=>{
 
 if(k==="remark"){
-
-row+=`<td>
-<input value="${r[k]||""}"
-onchange="updateRemark(${i},this.value)">
-</td>`;
-
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`;
 }else{
-
 row+=`<td>${r[k]||""}</td>`;
-
 }
 
 });
