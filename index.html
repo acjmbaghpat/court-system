@@ -25,7 +25,8 @@ button{background:#1976d2;color:#fff;border:none}
 
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+/* FIX */
+.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 
 .card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
 
@@ -73,7 +74,6 @@ animation:blink 1s 3;
 <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
 <div class="card">💾 Storage<br><span id="storageUsage">0%</span></div>
 </div>
-</div>
 
 <div class="section">
 <h3>📥 Excel Upload</h3>
@@ -97,9 +97,10 @@ animation:blink 1s 3;
 <div class="section">
 <button onclick="downloadExcel()">📤 Download Excel</button>
 </div>
-  <div class="section">
+
+<div class="section">
 <button onclick="deleteOldData()">🧹 Delete Data Older Than 15 Days</button>
-  </div>
+</div>
 
 <div class="table-wrap">
 <table id="table"></table>
@@ -121,6 +122,226 @@ animation:blink 1s 3;
 <button onclick="closePopup()">Cancel</button>
 </div>
 </div>
+
+<script>
+
+/* STORAGE */
+
+function updateStorageUsage(){
+let total=5*1024*1024;
+let used=new Blob(Object.values(localStorage)).size;
+let percent=((used/total)*100).toFixed(1);
+storageUsage.innerText=percent+"%";
+}
+
+/* DELETE OLD DATA */
+
+function deleteOldData(){
+
+let today=new Date();
+let deleted=0;
+
+for(let i=localStorage.length-1;i>=0;i--){
+
+let key=localStorage.key(i);
+
+if(key.startsWith("court_")){
+
+/* FIXED DATE PARSE */
+let dateStr=key.replace("court_","").split("_")[0];
+
+let fileDate=new Date(dateStr);
+
+let diff=(today-fileDate)/(1000*60*60*24);
+
+if(diff>15){
+
+localStorage.removeItem(key);
+deleted++;
+
+}
+
+}
+
+}
+
+alert(deleted+" records deleted");
+updateStorageUsage();
+
+}
+
+/* FIREBASE */
+
+const firebaseConfig={
+apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+authDomain:"court-file-system.firebaseapp.com",
+projectId:"court-file-system"
+};
+
+firebase.initializeApp(firebaseConfig);
+const dbCloud=firebase.firestore();
+
+/* VARIABLES */
+
+let currentData=[];
+let uploadVersion=1;
+let scanMode="";
+let scanner=null;
+let lastReceivedIndex=null;
+let unsubscribe=null;
+
+let lastScanCode="";
+let lastScanTime=0;
+
+/* VOICE */
+
+function speak(msg){
+let speech=new SpeechSynthesisUtterance(msg);
+speech.lang="en-IN";
+speech.rate=1;
+speechSynthesis.speak(speech);
+}
+
+function speakNextDate(dateStr){
+if(!dateStr) return;
+let d=new Date(dateStr);
+let day=d.getDate();
+let month=d.toLocaleString("en-IN",{month:"long"});
+speak("Next date "+day+" "+month);
+}
+
+/* STORAGE KEYS */
+
+function versionKey(){return "versions_"+workDate.value}
+function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
+function currentVersionKey(){return "current_version_"+workDate.value}
+
+/* PAGE LOAD */
+
+window.onload=()=>{
+
+let today=new Date().toISOString().split("T")[0];
+workDate.value=today;
+
+loadVersions();
+loadCurrentVersion();
+loadLocal();
+loadFirebase();
+updateStorageUsage();
+
+}
+
+/* DASHBOARD */
+
+function updateDashboard(){
+
+totalCount.innerText=currentData.length;
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+
+}
+
+/* VERSION STORAGE */
+
+function saveVersions(arr){
+localStorage.setItem(versionKey(),JSON.stringify(arr));
+}
+
+function loadVersions(){
+
+versionSelect.innerHTML="";
+
+let saved=localStorage.getItem(versionKey());
+
+if(!saved)return;
+
+JSON.parse(saved).forEach(v=>{
+let opt=document.createElement("option");
+opt.value=v;
+opt.text="Upload "+v;
+versionSelect.appendChild(opt);
+});
+
+}
+
+/* CURRENT VERSION */
+
+function saveCurrentVersion(){
+localStorage.setItem(currentVersionKey(),uploadVersion);
+}
+
+function loadCurrentVersion(){
+
+let v=localStorage.getItem(currentVersionKey());
+
+if(v){
+uploadVersion=parseInt(v);
+versionSelect.value=uploadVersion;
+}
+
+}
+
+/* LOCAL DATA */
+
+function saveLocal(){
+localStorage.setItem(dataKey(),JSON.stringify(currentData));
+updateStorageUsage();
+}
+
+function loadLocal(){
+
+let saved=localStorage.getItem(dataKey());
+
+if(saved){
+currentData=JSON.parse(saved);
+drawTable(currentData);
+updateDashboard();
+}
+
+}
+
+/* FIREBASE */
+
+function syncFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+dbCloud.collection("courtfiles")
+.doc(id)
+.set({data:currentData},{merge:true});
+
+}
+
+/* FIXED LISTENER */
+
+function loadFirebase(){
+
+let id=workDate.value+"_"+uploadVersion;
+
+if(unsubscribe){
+unsubscribe();
+unsubscribe=null;
+}
+
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
+if(doc.exists){
+
+currentData=doc.data().data;
+
+drawTable(currentData);
+updateDashboard();
+
+}
+
+});
+
+}
+
+/* बाकी code unchanged (scanner, upload, table, search, download etc.) */
+
 
 <script>
   /* STORAGE USAGE */
