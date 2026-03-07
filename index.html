@@ -120,6 +120,71 @@ animation:blink 1s 3;
 
 <script>
 
+/* STORAGE CHECK */
+
+function getStoragePercent(){
+
+let total = 5 * 1024 * 1024;
+let used = new Blob(Object.values(localStorage)).size;
+
+let percent = (used/total)*100;
+
+storageUsage.innerText = percent.toFixed(1)+"%";
+
+return percent;
+
+}
+
+function downloadBackupExcel(data,name){
+
+let ws = XLSX.utils.json_to_sheet(data);
+
+let wb = XLSX.utils.book_new();
+
+XLSX.utils.book_append_sheet(wb,ws,"Backup");
+
+XLSX.writeFile(wb,name+"_backup.xlsx");
+
+}
+
+function autoCleanup(){
+
+let percent=getStoragePercent();
+
+if(percent<80)return;
+
+let today=new Date();
+
+for(let i=localStorage.length-1;i>=0;i--){
+
+let key=localStorage.key(i);
+
+if(key.startsWith("court_")){
+
+let parts=key.split("_");
+
+let dateStr=parts[1];
+
+let fileDate=new Date(dateStr);
+
+let diff=(today-fileDate)/(1000*60*60*24);
+
+if(diff>20){
+
+let data=JSON.parse(localStorage.getItem(key));
+
+downloadBackupExcel(data,key);
+
+localStorage.removeItem(key);
+
+}
+
+}
+
+}
+
+}
+
 /* FIREBASE */
 
 const firebaseConfig={
@@ -149,76 +214,6 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* STORAGE CHECK */
-
-function getStoragePercent(){
-
-let total = 5 * 1024 * 1024;
-
-let used = new Blob(Object.values(localStorage)).size;
-
-let percent = (used/total)*100;
-
-storageUsage.innerText = percent.toFixed(1) + "%";
-
-return percent;
-
-}
-
-/* BACKUP DOWNLOAD */
-
-function downloadBackupExcel(data,name){
-
-let ws = XLSX.utils.json_to_sheet(data);
-
-let wb = XLSX.utils.book_new();
-
-XLSX.utils.book_append_sheet(wb,ws,"Backup");
-
-XLSX.writeFile(wb,name+"_backup.xlsx");
-
-}
-
-/* AUTO CLEANUP */
-
-function autoCleanup(){
-
-let percent = getStoragePercent();
-
-if(percent < 80) return;
-
-let today = new Date();
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key = localStorage.key(i);
-
-if(key.startsWith("court_")){
-
-let parts = key.split("_");
-
-let dateStr = parts[1];
-
-let fileDate = new Date(dateStr);
-
-let diff = (today - fileDate)/(1000*60*60*24);
-
-if(diff > 20){
-
-let data = JSON.parse(localStorage.getItem(key));
-
-downloadBackupExcel(data,key);
-
-localStorage.removeItem(key);
-
-}
-
-}
-
-}
-
-}
-
 /* PAGE LOAD */
 
 window.onload=()=>{
@@ -237,80 +232,7 @@ autoCleanup();
 
 }
 
-/* बाकी पूरा आपका original code same रहेगा */
-
-/* DASHBOARD */
-
-function updateDashboard(){
-totalCount.innerText=currentData.length;
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
-}
-
-/* LOCAL STORAGE */
-
-function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData));
-}
-
-function loadLocal(){
-let saved=localStorage.getItem(dataKey());
-if(saved){
-currentData=JSON.parse(saved);
-drawTable(currentData);
-updateDashboard();
-}
-}
-
-/* VERSION STORAGE */
-
-function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr));
-}
-
-function loadVersions(){
-
-versionSelect.innerHTML="";
-
-let saved=localStorage.getItem(versionKey());
-
-if(!saved)return;
-
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option");
-opt.value=v;
-opt.text="Upload "+v;
-versionSelect.appendChild(opt);
-});
-
-}
-
-function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion);
-}
-
-function loadCurrentVersion(){
-
-let v=localStorage.getItem(currentVersionKey());
-
-if(v){
-uploadVersion=parseInt(v);
-versionSelect.value=uploadVersion;
-}
-
-}
-
-/* FIREBASE */
-
-function syncFirebase(){
-
-let id=workDate.value+"_"+uploadVersion;
-
-dbCloud.collection("courtfiles")
-.doc(id)
-.set({data:currentData},{merge:true});
-
-}
+/* FIREBASE SYNC (SAFE VERSION) */
 
 function loadFirebase(){
 
@@ -322,12 +244,18 @@ unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
 .onSnapshot(doc=>{
 
-if(doc.exists){
+if(doc.exists && doc.data().data){
+
+if(currentData.length===0){
 
 currentData=doc.data().data;
 
 drawTable(currentData);
 updateDashboard();
+
+saveLocal();
+
+}
 
 }
 
@@ -335,9 +263,8 @@ updateDashboard();
 
 }
 
-/* बाकी scan, excel upload, table, remark code आपका जैसा है वैसा ही रहेगा */
+/* --- बाकी पूरा आपका original code same रहेगा --- */
 
 </script>
-
 </body>
 </html>
