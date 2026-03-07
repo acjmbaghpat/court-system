@@ -25,7 +25,6 @@ button{background:#1976d2;color:#fff;border:none}
 
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* FIX */
 .dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 
 .card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
@@ -128,36 +127,34 @@ animation:blink 1s 3;
 /* STORAGE */
 
 function updateStorageUsage(){
-let total=5*1024*1024;
-let used=new Blob(Object.values(localStorage)).size;
-let percent=((used/total)*100).toFixed(1);
-storageUsage.innerText=percent+"%";
+let total=5*1024*1024
+let used=new Blob(Object.values(localStorage)).size
+let percent=((used/total)*100).toFixed(1)
+storageUsage.innerText=percent+"%"
 }
 
 /* DELETE OLD DATA */
 
 function deleteOldData(){
 
-let today=new Date();
-let deleted=0;
+let today=new Date()
+let deleted=0
 
 for(let i=localStorage.length-1;i>=0;i--){
 
-let key=localStorage.key(i);
+let key=localStorage.key(i)
 
 if(key.startsWith("court_")){
 
-/* FIXED DATE PARSE */
-let dateStr=key.replace("court_","").split("_")[0];
+let dateStr=key.replace("court_","").split("_")[0]
+let fileDate=new Date(dateStr)
 
-let fileDate=new Date(dateStr);
-
-let diff=(today-fileDate)/(1000*60*60*24);
+let diff=(today-fileDate)/(1000*60*60*24)
 
 if(diff>15){
 
-localStorage.removeItem(key);
-deleted++;
+localStorage.removeItem(key)
+deleted++
 
 }
 
@@ -165,8 +162,8 @@ deleted++;
 
 }
 
-alert(deleted+" records deleted");
-updateStorageUsage();
+alert(deleted+" records deleted")
+updateStorageUsage()
 
 }
 
@@ -176,38 +173,42 @@ const firebaseConfig={
 apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
 authDomain:"court-file-system.firebaseapp.com",
 projectId:"court-file-system"
-};
+}
 
-firebase.initializeApp(firebaseConfig);
-const dbCloud=firebase.firestore();
+firebase.initializeApp(firebaseConfig)
+const dbCloud=firebase.firestore()
 
 /* VARIABLES */
 
-let currentData=[];
-let uploadVersion=1;
-let scanMode="";
-let scanner=null;
-let lastReceivedIndex=null;
-let unsubscribe=null;
+let currentData=[]
+let uploadVersion=1
+let scanMode=""
+let scanner=null
+let lastReceivedIndex=null
+let unsubscribe=null
 
-let lastScanCode="";
-let lastScanTime=0;
+let lastScanCode=""
+let lastScanTime=0
 
 /* VOICE */
 
 function speak(msg){
-let speech=new SpeechSynthesisUtterance(msg);
-speech.lang="en-IN";
-speech.rate=1;
-speechSynthesis.speak(speech);
+let speech=new SpeechSynthesisUtterance(msg)
+speech.lang="en-IN"
+speech.rate=1
+speechSynthesis.speak(speech)
 }
 
 function speakNextDate(dateStr){
-if(!dateStr) return;
-let d=new Date(dateStr);
-let day=d.getDate();
-let month=d.toLocaleString("en-IN",{month:"long"});
-speak("Next date "+day+" "+month);
+
+if(!dateStr)return
+
+let d=new Date(dateStr)
+let day=d.getDate()
+let month=d.toLocaleString("en-IN",{month:"long"})
+
+speak("Next date "+day+" "+month)
+
 }
 
 /* STORAGE KEYS */
@@ -220,14 +221,15 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 
 window.onload=()=>{
 
-let today=new Date().toISOString().split("T")[0];
-workDate.value=today;
+let today=new Date().toISOString().split("T")[0]
 
-loadVersions();
-loadCurrentVersion();
-loadLocal();
-loadFirebase();
-updateStorageUsage();
+workDate.value=today
+
+loadVersions()
+loadCurrentVersion()
+loadLocal()
+loadFirebase()
+updateStorageUsage()
 
 }
 
@@ -235,48 +237,48 @@ updateStorageUsage();
 
 function updateDashboard(){
 
-totalCount.innerText=currentData.length;
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
+totalCount.innerText=currentData.length
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
 
 }
 
 /* VERSION STORAGE */
 
 function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr));
+localStorage.setItem(versionKey(),JSON.stringify(arr))
 }
 
 function loadVersions(){
 
-versionSelect.innerHTML="";
+versionSelect.innerHTML=""
 
-let saved=localStorage.getItem(versionKey());
+let saved=localStorage.getItem(versionKey())
 
-if(!saved)return;
+if(!saved)return
 
 JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option");
-opt.value=v;
-opt.text="Upload "+v;
-versionSelect.appendChild(opt);
-});
+let opt=document.createElement("option")
+opt.value=v
+opt.text="Upload "+v
+versionSelect.appendChild(opt)
+})
 
 }
 
 /* CURRENT VERSION */
 
 function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion);
+localStorage.setItem(currentVersionKey(),uploadVersion)
 }
 
 function loadCurrentVersion(){
 
-let v=localStorage.getItem(currentVersionKey());
+let v=localStorage.getItem(currentVersionKey())
 
 if(v){
-uploadVersion=parseInt(v);
-versionSelect.value=uploadVersion;
+uploadVersion=parseInt(v)
+versionSelect.value=uploadVersion
 }
 
 }
@@ -284,18 +286,18 @@ versionSelect.value=uploadVersion;
 /* LOCAL DATA */
 
 function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData));
-updateStorageUsage();
+localStorage.setItem(dataKey(),JSON.stringify(currentData))
+updateStorageUsage()
 }
 
 function loadLocal(){
 
-let saved=localStorage.getItem(dataKey());
+let saved=localStorage.getItem(dataKey())
 
 if(saved){
-currentData=JSON.parse(saved);
-drawTable(currentData);
-updateDashboard();
+currentData=JSON.parse(saved)
+drawTable(currentData)
+updateDashboard()
 }
 
 }
@@ -304,23 +306,21 @@ updateDashboard();
 
 function syncFirebase(){
 
-let id=workDate.value+"_"+uploadVersion;
+let id=workDate.value+"_"+uploadVersion
 
 dbCloud.collection("courtfiles")
 .doc(id)
-.set({data:currentData},{merge:true});
+.set({data:currentData},{merge:true})
 
 }
 
-/* FIXED LISTENER */
-
 function loadFirebase(){
 
-let id=workDate.value+"_"+uploadVersion;
+let id=workDate.value+"_"+uploadVersion
 
 if(unsubscribe){
-unsubscribe();
-unsubscribe=null;
+unsubscribe()
+unsubscribe=null
 }
 
 unsubscribe=dbCloud.collection("courtfiles")
@@ -329,297 +329,68 @@ unsubscribe=dbCloud.collection("courtfiles")
 
 if(doc.exists){
 
-currentData=doc.data().data;
+currentData=doc.data().data
 
-drawTable(currentData);
-updateDashboard();
-
-}
-
-});
+drawTable(currentData)
+updateDashboard()
 
 }
 
-/* बाकी code unchanged (scanner, upload, table, search, download etc.) */
-
-
-<script>
-  /* STORAGE USAGE */
-
-function updateStorageUsage(){
-
-let total = 5 * 1024 * 1024;
-let used = new Blob(Object.values(localStorage)).size;
-
-let percent = ((used/total)*100).toFixed(1);
-
-storageUsage.innerText = percent + "%";
-
-}
-
-/* DELETE OLD DATA */
-
-function deleteOldData(){
-
-let today = new Date();
-let deleted = 0;
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key = localStorage.key(i);
-
-if(key.startsWith("court_")){
-
-let parts = key.split("_");
-let dateStr = parts[1];
-let fileDate = new Date(dateStr);
-
-let diff = (today - fileDate)/(1000*60*60*24);
-
-if(diff > 15){
-
-localStorage.removeItem(key);
-deleted++;
-
-}
-
-}
-
-}
-
-alert(deleted + " records deleted");
-
-updateStorageUsage();
-
-}
-
-/* FIREBASE */
-
-const firebaseConfig={
-apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-authDomain:"court-file-system.firebaseapp.com",
-projectId:"court-file-system"
-};
-
-firebase.initializeApp(firebaseConfig);
-const dbCloud=firebase.firestore();
-
-/* VARIABLES */
-
-let currentData=[];
-let uploadVersion=1;
-let scanMode="";
-let scanner=null;
-let lastReceivedIndex=null;
-let unsubscribe=null;
-
-let lastScanCode="";
-let lastScanTime=0;
-
-/* VOICE */
-
-function speak(msg){
-
-let speech=new SpeechSynthesisUtterance(msg);
-
-speech.lang="en-IN";
-speech.rate=1;
-
-speechSynthesis.speak(speech);
-
-}
-
-function speakNextDate(dateStr){
-
-if(!dateStr) return;
-
-let d = new Date(dateStr);
-
-let day = d.getDate();
-let month = d.toLocaleString("en-IN",{month:"long"});
-
-speak("Next date " + day + " " + month);
-
-}
-
-/* STORAGE KEYS */
-
-function versionKey(){return "versions_"+workDate.value}
-function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
-function currentVersionKey(){return "current_version_"+workDate.value}
-
-/* PAGE LOAD */
-
-window.onload=()=>{
-
-let today=new Date().toISOString().split("T")[0];
-
-workDate.value=today;
-
-loadVersions();
-loadCurrentVersion();
-loadLocal();
-loadFirebase();
-updateStorageUsage();
-
-}
-
-/* DASHBOARD */
-
-function updateDashboard(){
-
-totalCount.innerText=currentData.length;
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length;
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length;
-
-}
-
-/* VERSION STORAGE */
-
-function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr));
-}
-
-function loadVersions(){
-
-versionSelect.innerHTML="";
-
-let saved=localStorage.getItem(versionKey());
-
-if(!saved)return;
-
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option");
-opt.value=v;
-opt.text="Upload "+v;
-versionSelect.appendChild(opt);
-});
-
-}
-
-/* CURRENT VERSION */
-
-function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion);
-}
-
-function loadCurrentVersion(){
-
-let v=localStorage.getItem(currentVersionKey());
-
-if(v){
-uploadVersion=parseInt(v);
-versionSelect.value=uploadVersion;
-}
-
-}
-
-/* LOCAL DATA */
-
-function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData));
-}
-
-function loadLocal(){
-
-let saved=localStorage.getItem(dataKey());
-
-if(saved){
-currentData=JSON.parse(saved);
-drawTable(currentData);
-updateDashboard();
-}
-
-}
-
-/* FIREBASE */
-
-function syncFirebase(){
-
-let id=workDate.value+"_"+uploadVersion;
-
-dbCloud.collection("courtfiles")
-.doc(id)
-.set({data:currentData},{merge:true});
-
-}
-
-function loadFirebase(){
-
-let id=workDate.value+"_"+uploadVersion;
-
-if(unsubscribe) unsubscribe();
-
-unsubscribe=dbCloud.collection("courtfiles")
-.doc(id)
-.onSnapshot(doc=>{
-
-if(doc.exists){
-
-currentData=doc.data().data;
-
-drawTable(currentData);
-updateDashboard();
-
-}
-
-});
+})
 
 }
 
 /* DATE CHANGE */
 
 workDate.addEventListener("change",()=>{
-
-loadVersions();
-loadCurrentVersion();
-loadLocal();
-loadFirebase();
-
-});
+loadVersions()
+loadCurrentVersion()
+loadLocal()
+loadFirebase()
+})
 
 /* VERSION CHANGE */
 
 versionSelect.addEventListener("change",()=>{
 
-uploadVersion=parseInt(versionSelect.value);
+uploadVersion=parseInt(versionSelect.value)
 
-saveCurrentVersion();
+saveCurrentVersion()
 
-loadLocal();
-loadFirebase();
+loadLocal()
+loadFirebase()
 
-});
+})
 
 /* UPLOAD */
 
 function uploadExcel(){
 
-let file=excelFile.files[0];
+let file=excelFile.files[0]
 
 if(!file){
-alert("Select Excel");
-return;
+alert("Select Excel")
+return
 }
 
-let versions=JSON.parse(localStorage.getItem(versionKey())||"[]");
+let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
 
-if(!Array.isArray(versions)) versions=[];
+if(!Array.isArray(versions))versions=[]
 
-uploadVersion=versions.length+1;
+uploadVersion=versions.length+1
 
-let reader=new FileReader();
+let reader=new FileReader()
 
 reader.onload=e=>{
 
-let wb=XLSX.read(e.target.result,{type:"binary"});
+let wb=XLSX.read(e.target.result,{type:"binary"})
 
 let rows=XLSX.utils.sheet_to_json(
 wb.Sheets[wb.SheetNames[0]],
 {header:1,defval:""}
-);
+)
 
-rows.shift();
+rows.shift()
 
 currentData=rows.map(r=>({
 
@@ -634,32 +405,32 @@ receiveddate:"",
 nextdate:"",
 remark:""
 
-}));
+}))
 
-let opt=document.createElement("option");
+let opt=document.createElement("option")
 
-opt.value=uploadVersion;
-opt.text="Upload "+uploadVersion;
+opt.value=uploadVersion
+opt.text="Upload "+uploadVersion
 
-versionSelect.appendChild(opt);
-versionSelect.value=uploadVersion;
+versionSelect.appendChild(opt)
+versionSelect.value=uploadVersion
 
-versions.push(uploadVersion);
+versions.push(uploadVersion)
 
-saveVersions(versions);
-saveCurrentVersion();
+saveVersions(versions)
+saveCurrentVersion()
 
-drawTable(currentData);
-updateDashboard();
+drawTable(currentData)
+updateDashboard()
 
-saveLocal();
-syncFirebase();
+saveLocal()
+syncFirebase()
 
-excelFile.value="";
+excelFile.value=""
 
-};
+}
 
-reader.readAsBinaryString(file);
+reader.readAsBinaryString(file)
 
 }
 
@@ -670,32 +441,32 @@ function scanReceived(){scanMode="RECEIVED";startScanner()}
 
 async function startScanner(){
 
-scannerWrap.style.display="block";
+scannerWrap.style.display="block"
 
-scanner=new ZXing.BrowserQRCodeReader();
+scanner=new ZXing.BrowserQRCodeReader()
 
-const devices=await scanner.listVideoInputDevices();
+const devices=await scanner.listVideoInputDevices()
 
-let cam=devices[devices.length-1];
+let cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0]
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
 
 if(result){
-handleScan(result.text.trim());
+handleScan(result.text.trim())
 }
 
-});
+})
 
 }
 
 function stopScanner(){
 
 if(scanner){
-scanner.reset();
-scanner=null;
+scanner.reset()
+scanner=null
 }
 
-scannerWrap.style.display="none";
+scannerWrap.style.display="none"
 
 }
 
@@ -703,77 +474,74 @@ scannerWrap.style.display="none";
 
 function handleScan(code){
 
-let now=Date.now();
+let now=Date.now()
 
-if(code===lastScanCode && now-lastScanTime<1000){
-return;
-}
+if(code===lastScanCode && now-lastScanTime<1000)return
 
-lastScanCode=code;
-lastScanTime=now;
+lastScanCode=code
+lastScanTime=now
 
-let idx=currentData.findIndex(r=>r.caseno===code);
+let idx=currentData.findIndex(r=>r.caseno===code)
 
 if(idx===-1){
-alert("❌ File Not Found");
-speak("File not found");
-return;
+alert("❌ File Not Found")
+speak("File not found")
+return
 }
 
 if(scanMode==="SENT"){
 
 if(currentData[idx].sent==="Sent"){
-alert("❌ Already Sent");
-speak("Already sent");
-return;
+alert("❌ Already Sent")
+speak("Already sent")
+return
 }
 
-currentData[idx].sent="Sent";
-alert("✅ Sent");
-speak("File sent");
+currentData[idx].sent="Sent"
+alert("✅ Sent")
+speak("File sent")
 
 }
 
 if(scanMode==="RECEIVED"){
 
 if(currentData[idx].sent!=="Sent"){
-alert("❌ File Not Sent Yet");
-speak("File not sent yet");
-return;
+alert("❌ File Not Sent Yet")
+speak("File not sent yet")
+return
 }
 
 if(currentData[idx].received==="Received"){
-alert("❌ Already Received");
-speak("Already received");
-return;
+alert("❌ Already Received")
+speak("Already received")
+return
 }
 
-currentData[idx].received="Received";
+currentData[idx].received="Received"
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
 
-currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
+lastReceivedIndex=idx
 
-lastReceivedIndex=idx;
+alert("📥 Received")
+speak("File received")
 
-alert("📥 Received");
-speak("File received");
-
-nextDatePopup.style.display="block";
+nextDatePopup.style.display="block"
 
 setTimeout(()=>{
-nextDateInput.focus();
+nextDateInput.focus()
 if(nextDateInput.showPicker){
-nextDateInput.showPicker();
+nextDateInput.showPicker()
 }
-},200);
+},200)
 
 }
 
-drawTable(currentData);
-scrollToFile(code);
+drawTable(currentData)
+scrollToFile(code)
 
-updateDashboard();
-saveLocal();
-syncFirebase();
+updateDashboard()
+saveLocal()
+syncFirebase()
 
 }
 
@@ -781,20 +549,17 @@ syncFirebase();
 
 function scrollToFile(caseno){
 
-let row=document.getElementById("row_"+caseno);
+let row=document.getElementById("row_"+caseno)
 
-if(!row) return;
+if(!row)return
 
-row.scrollIntoView({
-behavior:"smooth",
-block:"center"
-});
+row.scrollIntoView({behavior:"smooth",block:"center"})
 
-row.classList.add("highlight");
+row.classList.add("highlight")
 
 setTimeout(()=>{
-row.classList.remove("highlight");
-},3000);
+row.classList.remove("highlight")
+},3000)
 
 }
 
@@ -802,20 +567,20 @@ row.classList.remove("highlight");
 
 function saveNextDate(){
 
-if(lastReceivedIndex==null) return;
+if(lastReceivedIndex==null)return
 
-let selectedDate = nextDateInput.value;
+let selectedDate=nextDateInput.value
 
-currentData[lastReceivedIndex].nextdate = selectedDate;
+currentData[lastReceivedIndex].nextdate=selectedDate
 
-nextDatePopup.style.display="none";
+nextDatePopup.style.display="none"
 
-drawTable(currentData);
+drawTable(currentData)
 
-speakNextDate(selectedDate);
+speakNextDate(selectedDate)
 
-saveLocal();
-syncFirebase();
+saveLocal()
+syncFirebase()
 
 }
 
@@ -826,9 +591,9 @@ nextDatePopup.style.display="none"
 /* REMARK */
 
 function updateRemark(i,val){
-currentData[i].remark=val;
-saveLocal();
-syncFirebase();
+currentData[i].remark=val
+saveLocal()
+syncFirebase()
 }
 
 /* TABLE */
@@ -836,40 +601,40 @@ syncFirebase();
 function drawTable(data){
 
 if(!data.length){
-table.innerHTML="";
-return;
+table.innerHTML=""
+return
 }
 
 let headers=[
 "srno","caseno","partyname","section","ps",
 "sent","received","receiveddate","nextdate","remark"
-];
+]
 
-let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
+let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
 
 data.forEach(r=>{
 
-let index=currentData.findIndex(x=>x.caseno===r.caseno);
+let index=currentData.findIndex(x=>x.caseno===r.caseno)
 
-let row=`<tr id="row_${r.caseno}">`;
+let row=`<tr id="row_${r.caseno}">`
 
 headers.forEach(k=>{
 
 if(k==="remark"){
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`;
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`
 }else{
-row+=`<td>${r[k]||""}</td>`;
+row+=`<td>${r[k]||""}</td>`
 }
 
-});
+})
 
-row+="</tr>";
+row+="</tr>"
 
-html+=row;
+html+=row
 
-});
+})
 
-table.innerHTML=html;
+table.innerHTML=html
 
 }
 
@@ -877,27 +642,27 @@ table.innerHTML=html;
 
 searchBox.addEventListener("input",()=>{
 
-let q=searchBox.value.toLowerCase();
+let q=searchBox.value.toLowerCase()
 
 let filtered=q
 ?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
-:currentData;
+:currentData
 
-drawTable(filtered);
+drawTable(filtered)
 
-});
+})
 
 /* DOWNLOAD */
 
 function downloadExcel(){
 
-let ws=XLSX.utils.json_to_sheet(currentData);
+let ws=XLSX.utils.json_to_sheet(currentData)
 
-let wb=XLSX.utils.book_new();
+let wb=XLSX.utils.book_new()
 
-XLSX.utils.book_append_sheet(wb,ws,"Court Data");
+XLSX.utils.book_append_sheet(wb,ws,"Court Data")
 
-XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx");
+XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
 
 }
 
