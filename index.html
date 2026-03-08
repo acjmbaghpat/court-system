@@ -174,13 +174,15 @@ border-radius:12px
 /* VARIABLES */
 
 let currentData=[]
-let caseIndex={}
-let searchIndex=[]
 let uploadVersion=1
 let scanMode=""
 let scanner=null
 let lastReceivedIndex=null
 let unsubscribe=null
+
+let caseIndex={}
+let searchIndex=[]
+
 let lastScanCode=""
 let lastScanTime=0
 
@@ -205,7 +207,7 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 
 function buildIndex(){
 caseIndex={}
-currentData.forEach((r,i)=>{caseIndex[r.caseno]=i})
+currentData.forEach((r,i)=>caseIndex[r.caseno]=i)
 }
 
 function buildSearch(){
@@ -291,8 +293,13 @@ function loadCurrentVersion(){
 let v=localStorage.getItem(currentVersionKey())
 
 if(v){
+
 uploadVersion=parseInt(v)
+
+setTimeout(()=>{
 versionSelect.value=uploadVersion
+},20)
+
 }
 
 }
@@ -348,9 +355,17 @@ let today=new Date().toISOString().split("T")[0]
 workDate.value=today
 
 loadVersions()
+
+setTimeout(()=>{
+
 loadCurrentVersion()
+
 loadLocal()
+
 loadFirebase()
+
+},50)
+
 updateStorageUsage()
 
 }
@@ -392,6 +407,7 @@ if(diff>60)localStorage.removeItem(key)
 loadVersions()
 loadCurrentVersion()
 loadLocal()
+
 updateStorageUsage()
 
 }
