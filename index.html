@@ -14,6 +14,7 @@
 <style>
 
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
+
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
 input,button,select{
@@ -29,89 +30,25 @@ button{background:#1976d2;color:#fff;border:none}
 
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.dashboard{
-display:grid;
-grid-template-columns:1fr 1fr 1fr 1fr;
-gap:10px;
-margin-bottom:12px
-}
+.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
 
-.card{
-background:#fff;
-padding:10px;
-border-radius:10px;
-text-align:center;
-font-weight:600
-}
+.card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
 
-.table-wrap{
-background:#fff;
-border-radius:12px;
-overflow-x:auto
-}
+.table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
 
-table{
-width:100%;
-border-collapse:collapse;
-min-width:900px
-}
+table{width:100%;border-collapse:collapse;min-width:900px}
 
-th,td{
-border:1px solid #ddd;
-padding:6px;
-font-size:13px
-}
+th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 
-#scannerWrap{
-position:fixed;
-inset:0;
-background:#000;
-display:none;
-z-index:999
-}
+#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
 
-#video{
-width:100%;
-height:75vh;
-object-fit:cover
-}
+#video{width:100%;height:75vh;object-fit:cover}
 
-#scanBox{
-position:absolute;
-top:25%;
-left:15%;
-width:70%;
-height:50%;
-border:4px solid #00ff00;
-border-radius:10px
-}
+#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
 
-#nextDatePopup{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.6);
-display:none;
-z-index:1000
-}
+#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
 
-#popupBox{
-background:#fff;
-margin:25% auto;
-padding:20px;
-width:90%;
-border-radius:12px
-}
-
-.highlight{
-background:#fff3cd;
-animation:blink 1s 3;
-}
-
-@keyframes blink{
-0%{background:#fff3cd}
-50%{background:#ffffff}
-100%{background:#fff3cd}
-}
+#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
 
 </style>
 </head>
@@ -181,6 +118,19 @@ animation:blink 1s 3;
 
 <script>
 
+/* SPEAKER */
+
+function speak(msg){
+
+let speech = new SpeechSynthesisUtterance(msg)
+
+speech.lang="en-IN"
+speech.rate=1
+
+speechSynthesis.speak(speech)
+
+}
+
 /* FIREBASE */
 
 const firebaseConfig={
@@ -192,242 +142,38 @@ projectId:"court-file-system"
 firebase.initializeApp(firebaseConfig)
 const dbCloud=firebase.firestore()
 
-/* VARIABLES */
-
 let currentData=[]
 let uploadVersion=1
 let scanMode=""
 let scanner=null
 let lastReceivedIndex=null
-let unsubscribe=null
-
-let lastScanCode=""
-let lastScanTime=0
-
-/* STORAGE KEYS */
-
-function versionKey(){return "versions_"+workDate.value}
-function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
-function currentVersionKey(){return "current_version_"+workDate.value}
-
-/* STORAGE METER */
-
-function updateStorageUsage(){
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-storageUsage.innerText=((used/total)*100).toFixed(1)+"%"
-}
-
-/* DELETE OLD */
-
-function deleteOldData(){
-
-let today=new Date()
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key=localStorage.key(i)
-
-if(key && key.startsWith("court_")){
-
-let dateStr=key.replace("court_","").split("_")[0]
-
-let fileDate=new Date(dateStr)
-
-let diff=(today-fileDate)/(1000*60*60*24)
-
-if(diff>15)localStorage.removeItem(key)
-
-}
-
-}
-
-updateStorageUsage()
-
-}
 
 /* PAGE LOAD */
 
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0]
-
 workDate.value=today
 
-loadVersions()
-
-setTimeout(()=>{
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-},50)
-
-updateStorageUsage()
-
 }
-
-/* DATE CHANGE */
-
-workDate.addEventListener("change",()=>{
-
-loadVersions()
-
-setTimeout(()=>{
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-},50)
-
-})
 
 /* DASHBOARD */
 
 function updateDashboard(){
+
 totalCount.innerText=currentData.length
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
-}
-
-/* VERSION STORAGE */
-
-function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr))
-}
-
-function loadVersions(){
-
-versionSelect.innerHTML=""
-
-let saved=localStorage.getItem(versionKey())
-
-if(!saved)return
-
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option")
-opt.value=v
-opt.text="Upload "+v
-versionSelect.appendChild(opt)
-})
 
 }
 
-/* CURRENT VERSION */
-
-function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion)
-}
-
-function loadCurrentVersion(){
-
-let v=localStorage.getItem(currentVersionKey())
-
-if(v){
-
-uploadVersion=parseInt(v)
-
-setTimeout(()=>{
-versionSelect.value=uploadVersion
-},50)
-
-}
-
-}
-
-/* LOCAL DATA */
-
-function saveLocal(){
-
-try{
-localStorage.setItem(dataKey(),JSON.stringify(currentData))
-}catch(e){
-alert("Storage full")
-}
-
-updateStorageUsage()
-
-}
-
-function loadLocal(){
-
-let saved=localStorage.getItem(dataKey())
-
-if(saved){
-
-currentData=JSON.parse(saved)
-
-drawTable(currentData)
-updateDashboard()
-
-}
-
-}
-
-/* FIREBASE */
-
-function syncFirebase(){
-
-let id=workDate.value+"_"+uploadVersion
-
-dbCloud.collection("courtfiles")
-.doc(id)
-.set({data:currentData},{merge:true})
-
-}
-
-function loadFirebase(){
-
-let id=workDate.value+"_"+uploadVersion
-
-if(unsubscribe)unsubscribe()
-
-unsubscribe=dbCloud.collection("courtfiles")
-.doc(id)
-.onSnapshot(doc=>{
-
-if(doc.exists){
-
-let cloudData=doc.data().data||[]
-
-if(cloudData.length>currentData.length){
-currentData=cloudData
-}
-
-drawTable(currentData)
-updateDashboard()
-
-}
-
-})
-
-}
-
-/* VERSION CHANGE */
-
-versionSelect.addEventListener("change",()=>{
-
-uploadVersion=parseInt(versionSelect.value)
-
-saveCurrentVersion()
-
-currentData=[]
-drawTable([])
-
-loadLocal()
-loadFirebase()
-
-})
-
-/* UPLOAD */
+/* EXCEL UPLOAD */
 
 function uploadExcel(){
 
 let file=excelFile.files[0]
 
 if(!file){alert("Select Excel");return}
-
-let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
-
-uploadVersion=versions.length+1
 
 let reader=new FileReader()
 
@@ -437,12 +183,13 @@ let wb=XLSX.read(e.target.result,{type:"binary"})
 
 let rows=XLSX.utils.sheet_to_json(
 wb.Sheets[wb.SheetNames[0]],
-{header:1,defval:""}
+{header:1}
 )
 
 rows.shift()
 
 currentData=rows.map(r=>({
+
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -453,18 +200,11 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
+
 }))
-
-versions.push(uploadVersion)
-
-saveVersions(versions)
-saveCurrentVersion()
 
 drawTable(currentData)
 updateDashboard()
-
-saveLocal()
-syncFirebase()
 
 }
 
@@ -472,28 +212,110 @@ reader.readAsBinaryString(file)
 
 }
 
+/* SCANNER */
+
+function scanSent(){scanMode="SENT";startScanner()}
+function scanReceived(){scanMode="RECEIVED";startScanner()}
+
+async function startScanner(){
+
+scannerWrap.style.display="block"
+
+scanner=new ZXing.BrowserQRCodeReader()
+
+const devices=await scanner.listVideoInputDevices()
+
+let cam=devices[devices.length-1]
+
+scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
+
+if(result)handleScan(result.text.trim())
+
+})
+
+}
+
+function stopScanner(){
+
+if(scanner){scanner.reset()}
+
+scannerWrap.style.display="none"
+
+}
+
+/* SCAN */
+
+function handleScan(code){
+
+let idx=currentData.findIndex(r=>r.caseno===code)
+
+if(idx===-1){
+
+alert("File Not Found")
+speak("File not found")
+return
+
+}
+
+if(scanMode==="SENT"){
+
+currentData[idx].sent="Sent"
+speak("File sent")
+
+}
+
+if(scanMode==="RECEIVED"){
+
+currentData[idx].received="Received"
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
+
+lastReceivedIndex=idx
+
+nextDatePopup.style.display="block"
+
+speak("File received")
+
+}
+
+drawTable(currentData)
+updateDashboard()
+
+}
+
+/* NEXT DATE */
+
+function saveNextDate(){
+
+currentData[lastReceivedIndex].nextdate=nextDateInput.value
+
+nextDatePopup.style.display="none"
+
+drawTable(currentData)
+
+}
+
+/* CLOSE POPUP */
+
+function closePopup(){
+
+nextDatePopup.style.display="none"
+
+}
+
 /* TABLE */
 
 function drawTable(data){
-
-if(!data.length){table.innerHTML="";return}
 
 let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
 
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
 
-data.forEach((r,i)=>{
+data.forEach(r=>{
 
-let row=`<tr>`
+let row="<tr>"
 
 headers.forEach(k=>{
-
-if(k==="remark"){
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`
-}else{
-row+=`<td>${r[k]||""}</td>`
-}
-
+row+="<td>"+(r[k]||"")+"</td>"
 })
 
 row+="</tr>"
@@ -504,14 +326,6 @@ html+=row
 
 table.innerHTML=html
 
-}
-
-/* REMARK */
-
-function updateRemark(i,val){
-currentData[i].remark=val
-saveLocal()
-syncFirebase()
 }
 
 /* SEARCH */
