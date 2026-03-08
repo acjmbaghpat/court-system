@@ -14,7 +14,6 @@
 <style>
 
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
-
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
 input,button,select{
@@ -211,19 +210,15 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* STORAGE */
+/* STORAGE METER */
 
 function updateStorageUsage(){
-
 let total=5*1024*1024
 let used=new Blob(Object.values(localStorage)).size
-let percent=((used/total)*100).toFixed(1)
-
-storageUsage.innerText=percent+"%"
-
+storageUsage.innerText=((used/total)*100).toFixed(1)+"%"
 }
 
-/* DELETE OLD DATA */
+/* DELETE OLD */
 
 function deleteOldData(){
 
@@ -236,6 +231,7 @@ let key=localStorage.key(i)
 if(key && key.startsWith("court_")){
 
 let dateStr=key.replace("court_","").split("_")[0]
+
 let fileDate=new Date(dateStr)
 
 let diff=(today-fileDate)/(1000*60*60*24)
@@ -270,14 +266,26 @@ updateStorageUsage()
 
 }
 
+/* DATE CHANGE */
+
+workDate.addEventListener("change",()=>{
+
+loadVersions()
+
+setTimeout(()=>{
+loadCurrentVersion()
+loadLocal()
+loadFirebase()
+},50)
+
+})
+
 /* DASHBOARD */
 
 function updateDashboard(){
-
 totalCount.innerText=currentData.length
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
-
 }
 
 /* VERSION STORAGE */
@@ -295,13 +303,10 @@ let saved=localStorage.getItem(versionKey())
 if(!saved)return
 
 JSON.parse(saved).forEach(v=>{
-
 let opt=document.createElement("option")
 opt.value=v
 opt.text="Upload "+v
-
 versionSelect.appendChild(opt)
-
 })
 
 }
@@ -317,8 +322,13 @@ function loadCurrentVersion(){
 let v=localStorage.getItem(currentVersionKey())
 
 if(v){
+
 uploadVersion=parseInt(v)
+
+setTimeout(()=>{
 versionSelect.value=uploadVersion
+},50)
+
 }
 
 }
@@ -330,7 +340,7 @@ function saveLocal(){
 try{
 localStorage.setItem(dataKey(),JSON.stringify(currentData))
 }catch(e){
-alert("Storage Full")
+alert("Storage full")
 }
 
 updateStorageUsage()
@@ -433,7 +443,6 @@ wb.Sheets[wb.SheetNames[0]],
 rows.shift()
 
 currentData=rows.map(r=>({
-
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -444,7 +453,6 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
-
 }))
 
 versions.push(uploadVersion)
@@ -464,121 +472,19 @@ reader.readAsBinaryString(file)
 
 }
 
-/* SCANNER */
-
-function scanSent(){scanMode="SENT";startScanner()}
-function scanReceived(){scanMode="RECEIVED";startScanner()}
-
-async function startScanner(){
-
-scannerWrap.style.display="block"
-
-scanner=new ZXing.BrowserQRCodeReader()
-
-const devices=await scanner.listVideoInputDevices()
-
-let cam=devices[devices.length-1]
-
-scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-
-if(result)handleScan(result.text.trim())
-
-})
-
-}
-
-function stopScanner(){
-
-if(scanner){
-scanner.reset()
-scanner=null
-}
-
-scannerWrap.style.display="none"
-
-}
-
-/* SCAN */
-
-function handleScan(code){
-
-let now=Date.now()
-
-if(code===lastScanCode && now-lastScanTime<1000)return
-
-lastScanCode=code
-lastScanTime=now
-
-let idx=currentData.findIndex(r=>r.caseno===code)
-
-if(idx===-1){alert("File Not Found");return}
-
-if(scanMode==="SENT")currentData[idx].sent="Sent"
-
-if(scanMode==="RECEIVED"){
-
-currentData[idx].received="Received"
-currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-
-lastReceivedIndex=idx
-
-nextDatePopup.style.display="block"
-
-}
-
-drawTable(currentData)
-updateDashboard()
-
-saveLocal()
-syncFirebase()
-
-}
-
-/* NEXT DATE */
-
-function saveNextDate(){
-
-if(lastReceivedIndex==null)return
-
-currentData[lastReceivedIndex].nextdate=nextDateInput.value
-
-nextDatePopup.style.display="none"
-
-drawTable(currentData)
-
-saveLocal()
-syncFirebase()
-
-}
-
-function closePopup(){
-nextDatePopup.style.display="none"
-}
-
-/* REMARK */
-
-function updateRemark(i,val){
-currentData[i].remark=val
-saveLocal()
-syncFirebase()
-}
-
 /* TABLE */
 
 function drawTable(data){
 
 if(!data.length){table.innerHTML="";return}
 
-let headers=[
-"srno","caseno","partyname","section","ps",
-"sent","received","receiveddate","nextdate","remark"
-]
+let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
 
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
 
 data.forEach((r,i)=>{
 
-let row=`<tr id="row_${r.caseno}">`
+let row=`<tr>`
 
 headers.forEach(k=>{
 
@@ -598,6 +504,14 @@ html+=row
 
 table.innerHTML=html
 
+}
+
+/* REMARK */
+
+function updateRemark(i,val){
+currentData[i].remark=val
+saveLocal()
+syncFirebase()
 }
 
 /* SEARCH */
