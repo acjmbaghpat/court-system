@@ -124,41 +124,39 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE USAGE */
+/* STORAGE */
 
 function updateStorageUsage(){
 
-let total = 5 * 1024 * 1024
-
+let total = 5*1024*1024
 let used = JSON.stringify(localStorage).length
+let percent=((used/total)*100).toFixed(1)
 
-let percent = ((used/total)*100).toFixed(1)
-
-storageUsage.innerText = percent + "%"
+storageUsage.innerText=percent+"%"
 
 }
 
-/* DELETE OLD DATA */
+/* DELETE OLD */
 
 function deleteOldData(){
 
-let today = new Date()
-let deleted = 0
+let today=new Date()
+let deleted=0
 
 for(let i=localStorage.length-1;i>=0;i--){
 
-let key = localStorage.key(i)
+let key=localStorage.key(i)
 
 if(key.startsWith("court_")){
 
-let parts = key.split("_")
-let dateStr = parts[1]
+let parts=key.split("_")
+let dateStr=parts[1]
 
-let fileDate = new Date(dateStr)
+let fileDate=new Date(dateStr)
 
-let diff = (today - fileDate)/(1000*60*60*24)
+let diff=(today-fileDate)/(1000*60*60*24)
 
-if(diff > 30){
+if(diff>30){
 
 localStorage.removeItem(key)
 deleted++
@@ -169,7 +167,7 @@ deleted++
 
 }
 
-alert(deleted + " old records deleted")
+alert(deleted+" old records deleted")
 
 updateStorageUsage()
 
@@ -181,10 +179,10 @@ const firebaseConfig={
 apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
 authDomain:"court-file-system.firebaseapp.com",
 projectId:"court-file-system"
-};
+}
 
-firebase.initializeApp(firebaseConfig);
-const dbCloud=firebase.firestore();
+firebase.initializeApp(firebaseConfig)
+const dbCloud=firebase.firestore()
 
 /* VARIABLES */
 
@@ -198,13 +196,13 @@ let unsubscribe=null
 let lastScanCode=""
 let lastScanTime=0
 
-/* STORAGE KEYS */
+/* KEYS */
 
 function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* PAGE LOAD */
+/* LOAD */
 
 window.onload=()=>{
 
@@ -231,7 +229,7 @@ receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
 
 }
 
-/* VERSION STORAGE */
+/* VERSION */
 
 function saveVersions(arr){
 localStorage.setItem(versionKey(),JSON.stringify(arr))
@@ -254,8 +252,6 @@ versionSelect.appendChild(opt)
 
 }
 
-/* CURRENT VERSION */
-
 function saveCurrentVersion(){
 localStorage.setItem(currentVersionKey(),uploadVersion)
 }
@@ -271,7 +267,7 @@ versionSelect.value=uploadVersion
 
 }
 
-/* LOCAL DATA */
+/* LOCAL */
 
 function saveLocal(){
 localStorage.setItem(dataKey(),JSON.stringify(currentData))
@@ -283,9 +279,13 @@ function loadLocal(){
 let saved=localStorage.getItem(dataKey())
 
 if(saved){
+
 currentData=JSON.parse(saved)
+
 drawTable(currentData)
+
 updateDashboard()
+
 }
 
 }
@@ -306,7 +306,7 @@ function loadFirebase(){
 
 let id=workDate.value+"_"+uploadVersion
 
-if(unsubscribe) unsubscribe()
+if(unsubscribe)unsubscribe()
 
 unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
@@ -314,10 +314,10 @@ unsubscribe=dbCloud.collection("courtfiles")
 
 if(doc.exists){
 
-let cloudData = doc.data().data || []
+let cloudData=doc.data().data||[]
 
-if(currentData.length === 0){
-currentData = cloudData
+if(currentData.length===0){
+currentData=cloudData
 }
 
 drawTable(currentData)
@@ -364,6 +364,73 @@ loadFirebase()
 
 })
 
+/* EXCEL */
+
+function uploadExcel(){
+
+let file=excelFile.files[0]
+
+if(!file){
+alert("Select Excel")
+return
+}
+
+let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
+
+uploadVersion=versions.length+1
+
+let reader=new FileReader()
+
+reader.onload=e=>{
+
+let wb=XLSX.read(e.target.result,{type:"binary"})
+
+let rows=XLSX.utils.sheet_to_json(
+wb.Sheets[wb.SheetNames[0]],
+{header:1,defval:""}
+)
+
+rows.shift()
+
+currentData=rows.map(r=>({
+
+srno:r[0]||"",
+caseno:String(r[1]||"").trim(),
+partyname:r[2]||"",
+section:r[3]||"",
+ps:r[4]||"",
+sent:"",
+received:"",
+receiveddate:"",
+nextdate:"",
+remark:""
+
+}))
+
+let opt=document.createElement("option")
+opt.value=uploadVersion
+opt.text="Upload "+uploadVersion
+
+versionSelect.appendChild(opt)
+versionSelect.value=uploadVersion
+
+versions.push(uploadVersion)
+
+saveVersions(versions)
+saveCurrentVersion()
+
+drawTable(currentData)
+updateDashboard()
+
+saveLocal()
+syncFirebase()
+
+}
+
+reader.readAsBinaryString(file)
+
+}
+
 /* SCANNER */
 
 function scanSent(){scanMode="SENT";startScanner()}
@@ -391,6 +458,182 @@ handleScan(result.text.trim())
 
 }
 
+function stopScanner(){
+
+if(scanner){
+scanner.reset()
+scanner=null
+}
+
+scannerWrap.style.display="none"
+
+}
+
+/* SCAN */
+
+function handleScan(code){
+
+let now=Date.now()
+
+if(code===lastScanCode && now-lastScanTime<1000)return
+
+lastScanCode=code
+lastScanTime=now
+
+let idx=currentData.findIndex(r=>r.caseno===code)
+
+if(idx===-1){
+alert("File Not Found")
+return
+}
+
+if(scanMode==="SENT"){
+
+if(currentData[idx].sent==="Sent"){
+alert("Already Sent")
+return
+}
+
+currentData[idx].sent="Sent"
+
+}
+
+if(scanMode==="RECEIVED"){
+
+if(currentData[idx].sent!=="Sent"){
+alert("File Not Sent Yet")
+return
+}
+
+if(currentData[idx].received==="Received"){
+alert("Already Received")
+return
+}
+
+currentData[idx].received="Received"
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
+
+lastReceivedIndex=idx
+
+nextDatePopup.style.display="block"
+
+}
+
+drawTable(currentData)
+
+updateDashboard()
+
+saveLocal()
+syncFirebase()
+
+}
+
+/* NEXT DATE */
+
+function saveNextDate(){
+
+if(lastReceivedIndex===null)return
+
+let selectedDate=nextDateInput.value
+
+currentData[lastReceivedIndex].nextdate=selectedDate
+
+nextDatePopup.style.display="none"
+
+lastReceivedIndex=null
+
+drawTable(currentData)
+
+saveLocal()
+syncFirebase()
+
+}
+
+function closePopup(){
+
+nextDatePopup.style.display="none"
+
+lastReceivedIndex=null
+
+}
+
+/* REMARK */
+
+function updateRemark(i,val){
+currentData[i].remark=val
+saveLocal()
+syncFirebase()
+}
+
+/* TABLE */
+
+function drawTable(data){
+
+if(!data.length){
+table.innerHTML=""
+return
+}
+
+let headers=[
+"srno","caseno","partyname","section","ps",
+"sent","received","receiveddate","nextdate","remark"
+]
+
+let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
+
+data.forEach((r,i)=>{
+
+let row=`<tr>`
+
+headers.forEach(k=>{
+
+if(k==="remark"){
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`
+}else{
+row+=`<td>${r[k]||""}</td>`
+}
+
+})
+
+row+="</tr>"
+
+html+=row
+
+})
+
+table.innerHTML=html
+
+}
+
+/* SEARCH */
+
+searchBox.addEventListener("input",()=>{
+
+let q=searchBox.value.toLowerCase()
+
+let filtered=q
+?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
+:currentData
+
+drawTable(filtered)
+
+})
+
+/* DOWNLOAD */
+
+function downloadExcel(){
+
+let ws=XLSX.utils.json_to_sheet(currentData)
+
+let wb=XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb,ws,"Court Data")
+
+XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
+
+}
+
 </script>
+
 </body>
 </html>
