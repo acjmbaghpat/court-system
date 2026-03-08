@@ -542,16 +542,22 @@ lastReceivedIndex=null
 }
 
 /* REMARK */
+function updateRemark(caseNo,val){
 
-function updateRemark(i,val){
+let idx=currentData.findIndex(r=>r.caseno===caseNo)
 
-currentData[i].remark=val
+if(idx!==-1){
+
+currentData[idx].remark=val
 
 saveLocal()
 
 syncFirebase()
 
 }
+
+}
+
 
 /* TABLE */
 
@@ -577,7 +583,7 @@ headers.forEach(k=>{
 
 if(k==="remark"){
 
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark('${r.caseno}',this.value)"></td>`
 
 }else{
 
