@@ -15,7 +15,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
+
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
+
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
 input,button,select{
@@ -56,6 +58,7 @@ animation:blink 1s 3;
 50%{background:#ffffff}
 100%{background:#fff3cd}
 }
+
 </style>
 </head>
 
@@ -331,6 +334,9 @@ unsubscribe()
 unsubscribe=null
 }
 
+/* important fix */
+currentData=[]
+
 unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
 .onSnapshot(doc=>{
@@ -347,6 +353,22 @@ updateDashboard()
 })
 
 }
+
+/* VERSION CHANGE */
+
+versionSelect.addEventListener("change",()=>{
+
+uploadVersion=parseInt(versionSelect.value)
+
+saveCurrentVersion()
+
+currentData=[]
+drawTable([])
+
+loadLocal()
+loadFirebase()
+
+})
 
 /* REMARK OPTIMISATION */
 
