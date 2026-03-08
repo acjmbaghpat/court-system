@@ -337,7 +337,11 @@ unsubscribe=dbCloud.collection("courtfiles")
 
 if(doc.exists){
 
-currentData=doc.data().data;
+let cloudData = doc.data().data || [];
+
+if(cloudData.length > currentData.length){
+currentData = cloudData;
+}
 
 drawTable(currentData);
 updateDashboard();
@@ -354,6 +358,10 @@ workDate.addEventListener("change",()=>{
 
 loadVersions();
 loadCurrentVersion();
+
+currentData=[];
+drawTable([]);
+
 loadLocal();
 loadFirebase();
 
@@ -366,6 +374,9 @@ versionSelect.addEventListener("change",()=>{
 uploadVersion=parseInt(versionSelect.value);
 
 saveCurrentVersion();
+
+currentData=[];
+drawTable([]);
 
 loadLocal();
 loadFirebase();
@@ -457,7 +468,7 @@ scanner=new ZXing.BrowserQRCodeReader();
 
 const devices=await scanner.listVideoInputDevices();
 
-let cam=devices[devices.length-1];
+let cam=devices.find(d=>d.label.toLowerCase().includes("back")) || devices[0];
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
 
