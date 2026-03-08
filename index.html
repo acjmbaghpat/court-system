@@ -124,243 +124,322 @@ animation:blink 1s 3;
 
 <script>
 
-/* ===================== INDEXEDDB WRAPPER =====================
-   localStorage की जगह IndexedDB use हो रहा है।
-   IndexedDB: 50MB – 1GB+ storage (browser/device के हिसाब से)
-   सभी operations async/await हैं।
-============================================================= */
+/* ===================== IndexedDB ===================== */
 
-let _db = null
+let _db=null
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    if (_db) return resolve(_db)
-    const req = indexedDB.open("CourtFileDB", 1)
-    req.onupgradeneeded = e => {
-      e.target.result.createObjectStore("data", { keyPath: "key" })
-    }
-    req.onsuccess = e => {
-      _db = e.target.result
-      resolve(_db)
-    }
-    req.onerror = () => reject(req.error)
-  })
+function openDB(){
+return new Promise((resolve,reject)=>{
+if(_db) return resolve(_db)
+
+const req=indexedDB.open("CourtFileDB",1)
+
+req.onupgradeneeded=e=>{
+e.target.result.createObjectStore("data",{keyPath:"key"})
 }
 
-async function idbGet(key) {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction("data", "readonly")
-      .objectStore("data").get(key)
-    req.onsuccess = () => resolve(req.result ? req.result.value : null)
-    req.onerror = () => reject(req.error)
-  })
+req.onsuccess=e=>{
+_db=e.target.result
+resolve(_db)
 }
 
-async function idbSet(key, value) {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction("data", "readwrite")
-      .objectStore("data").put({ key, value })
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-  })
+req.onerror=()=>reject(req.error)
+})
 }
 
-async function idbDelete(key) {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction("data", "readwrite")
-      .objectStore("data").delete(key)
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-  })
+async function idbGet(key){
+const db=await openDB()
+
+return new Promise((resolve,reject)=>{
+const req=db.transaction("data","readonly")
+.objectStore("data").get(key)
+
+req.onsuccess=()=>resolve(req.result?req.result.value:null)
+req.onerror=()=>reject(req.error)
+})
 }
 
-async function idbGetAllKeys() {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const req = db.transaction("data", "readonly")
-      .objectStore("data").getAllKeys()
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-  })
+async function idbSet(key,value){
+const db=await openDB()
+
+return new Promise((resolve,reject)=>{
+const req=db.transaction("data","readwrite")
+.objectStore("data").put({key,value})
+
+req.onsuccess=()=>resolve()
+req.onerror=()=>reject(req.error)
+})
 }
 
-/* ===================== STORAGE USAGE ===================== */
+async function idbDelete(key){
+const db=await openDB()
 
-async function updateStorageUsage() {
-  if (navigator.storage && navigator.storage.estimate) {
-    const { usage, quota } = await navigator.storage.estimate()
-    const pct = ((usage / quota) * 100).toFixed(1)
-    const usedMB = (usage / (1024 * 1024)).toFixed(1)
-    const quotaMB = (quota / (1024 * 1024 * 1024)).toFixed(1)
-    storageUsage.innerText = `${pct}% (${usedMB}MB / ${quotaMB}GB)`
-  } else {
-    storageUsage.innerText = "N/A"
-  }
+return new Promise((resolve,reject)=>{
+const req=db.transaction("data","readwrite")
+.objectStore("data").delete(key)
+
+req.onsuccess=()=>resolve()
+req.onerror=()=>reject(req.error)
+})
 }
 
-/* ===================== DELETE OLD DATA ===================== */
+async function idbGetAllKeys(){
+const db=await openDB()
 
-async function deleteOldData() {
-  const today = new Date()
-  const allKeys = await idbGetAllKeys()
-  let deleted = 0
+return new Promise((resolve,reject)=>{
+const req=db.transaction("data","readonly")
+.objectStore("data").getAllKeys()
 
-  for (const key of allKeys) {
-    if (String(key).startsWith("court_")) {
-      const dateStr = String(key).replace("court_", "").split("_")[0]
-      const fileDate = new Date(dateStr)
-      const diff = (today - fileDate) / (1000 * 60 * 60 * 24)
-      if (diff > 15) {
-        await idbDelete(key)
-        deleted++
-      }
-    }
-  }
-
-  alert(deleted + " records deleted")
-  await updateStorageUsage()
+req.onsuccess=()=>resolve(req.result)
+req.onerror=()=>reject(req.error)
+})
 }
 
-/* ===================== FIREBASE ===================== */
+/* STORAGE METER */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-  authDomain: "court-file-system.firebaseapp.com",
-  projectId: "court-file-system"
+async function updateStorageUsage(){
+
+if(navigator.storage && navigator.storage.estimate){
+
+const {usage,quota}=await navigator.storage.estimate()
+
+const pct=((usage/quota)*100).toFixed(1)
+
+storageUsage.innerText=pct+"%"
+
+}
+
+}
+
+/* DELETE OLD DATA */
+
+async function deleteOldData(){
+
+const today=new Date()
+
+const keys=await idbGetAllKeys()
+
+let deleted=0
+
+for(const key of keys){
+
+if(String(key).startsWith("court_")){
+
+const dateStr=String(key).replace("court_","").split("_")[0]
+
+const fileDate=new Date(dateStr)
+
+const diff=(today-fileDate)/(1000*60*60*24)
+
+if(diff>15){
+
+await idbDelete(key)
+deleted++
+
+}
+
+}
+
+}
+
+alert(deleted+" records deleted")
+
+updateStorageUsage()
+
+}
+
+/* FIREBASE */
+
+const firebaseConfig={
+apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+authDomain:"court-file-system.firebaseapp.com",
+projectId:"court-file-system"
 }
 
 firebase.initializeApp(firebaseConfig)
-const dbCloud = firebase.firestore()
 
-/* ===================== VARIABLES ===================== */
+const dbCloud=firebase.firestore()
 
-let currentData = []
-let uploadVersion = 1
-let scanMode = ""
-let scanner = null
-let lastReceivedIndex = null
-let unsubscribe = null
+/* VARIABLES */
 
-let lastScanCode = ""
-let lastScanTime = 0
+let currentData=[]
+let uploadVersion=1
+let scanMode=""
+let scanner=null
+let lastReceivedIndex=null
+let unsubscribe=null
 
-/* ===================== VOICE ===================== */
+let lastScanCode=""
+let lastScanTime=0
 
-function speak(msg) {
-  const speech = new SpeechSynthesisUtterance(msg)
-  speech.lang = "en-IN"
-  speech.rate = 1
-  speechSynthesis.speak(speech)
+/* VOICE */
+
+function speak(msg){
+
+const speech=new SpeechSynthesisUtterance(msg)
+
+speech.lang="en-IN"
+
+speechSynthesis.speak(speech)
+
 }
 
-function speakNextDate(dateStr) {
-  if (!dateStr) return
-  const d = new Date(dateStr)
-  const day = d.getDate()
-  const month = d.toLocaleString("en-IN", { month: "long" })
-  speak("Next date " + day + " " + month)
+function speakNextDate(dateStr){
+
+if(!dateStr) return
+
+const d=new Date(dateStr)
+
+const day=d.getDate()
+
+const month=d.toLocaleString("en-IN",{month:"long"})
+
+speak("Next date "+day+" "+month)
+
 }
 
-/* ===================== STORAGE KEYS ===================== */
+/* STORAGE KEYS */
 
-function versionKey()        { return "versions_"         + workDate.value }
-function dataKey()           { return "court_"            + workDate.value + "_" + uploadVersion }
-function currentVersionKey() { return "current_version_"  + workDate.value }
+function versionKey(){return "versions_"+workDate.value}
+function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
+function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* ===================== PAGE LOAD ===================== */
+/* PAGE LOAD */
 
-window.onload = async () => {
-  const today = new Date().toISOString().split("T")[0]
-  workDate.value = today
+window.onload=async()=>{
 
-  await loadVersions()
-  await loadCurrentVersion()
-  await loadLocal()
-  loadFirebase()
-  await updateStorageUsage()
+const today=new Date().toISOString().split("T")[0]
+
+workDate.value=today
+
+await loadCurrentVersion()
+await loadVersions()
+await loadLocal()
+
+loadFirebase()
+
+updateStorageUsage()
+
 }
 
-/* ===================== DASHBOARD ===================== */
+/* DASHBOARD */
 
-function updateDashboard() {
-  totalCount.innerText    = currentData.length
-  sentCount.innerText     = currentData.filter(x => x.sent === "Sent").length
-  receivedCount.innerText = currentData.filter(x => x.received === "Received").length
+function updateDashboard(){
+
+totalCount.innerText=currentData.length
+
+sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
+
+receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
+
 }
 
-/* ===================== VERSION STORAGE ===================== */
+/* VERSION */
 
-async function saveVersions(arr) {
-  await idbSet(versionKey(), arr)
+async function saveVersions(arr){
+await idbSet(versionKey(),arr)
 }
 
-async function loadVersions() {
-  versionSelect.innerHTML = ""
-  const saved = await idbGet(versionKey())
-  if (!saved) return
-  saved.forEach(v => {
-    const opt = document.createElement("option")
-    opt.value = v
-    opt.text  = "Upload " + v
-    versionSelect.appendChild(opt)
-  })
+async function loadVersions(){
+
+versionSelect.innerHTML=""
+
+const saved=await idbGet(versionKey())
+
+if(!saved) return
+
+saved.forEach(v=>{
+
+const opt=document.createElement("option")
+
+opt.value=v
+opt.text="Upload "+v
+
+versionSelect.appendChild(opt)
+
+})
+
+versionSelect.value=uploadVersion
+
 }
 
-/* ===================== CURRENT VERSION ===================== */
+/* CURRENT VERSION */
 
-async function saveCurrentVersion() {
-  await idbSet(currentVersionKey(), uploadVersion)
+async function saveCurrentVersion(){
+await idbSet(currentVersionKey(),uploadVersion)
 }
 
-async function loadCurrentVersion() {
-  const v = await idbGet(currentVersionKey())
-  if (v) {
-    uploadVersion = parseInt(v)
-    versionSelect.value = uploadVersion
-  }
+async function loadCurrentVersion(){
+
+const v=await idbGet(currentVersionKey())
+
+if(v){
+
+uploadVersion=parseInt(v)
+
 }
 
-/* ===================== LOCAL DATA ===================== */
-
-async function saveLocal() {
-  await idbSet(dataKey(), currentData)
-  await updateStorageUsage()
 }
 
-async function loadLocal() {
-  const saved = await idbGet(dataKey())
-  if (saved) {
-    currentData = saved
-    drawTable(currentData)
-    updateDashboard()
-  }
+/* LOCAL DATA */
+
+async function saveLocal(){
+
+await idbSet(dataKey(),currentData)
+
+updateStorageUsage()
+
 }
 
-/* ===================== FIREBASE ===================== */
+async function loadLocal(){
 
-function syncFirebase() {
-  const id = workDate.value + "_" + uploadVersion
-  dbCloud.collection("courtfiles").doc(id).set({ data: currentData }, { merge: true })
+const saved=await idbGet(dataKey())
+
+if(saved){
+
+currentData=saved
+
+drawTable(currentData)
+
+updateDashboard()
+
 }
 
-function loadFirebase() {
-  const id = workDate.value + "_" + uploadVersion
+}
 
-  if (unsubscribe) {
-    unsubscribe()
-    unsubscribe = null
-  }
+/* FIREBASE */
 
-  unsubscribe = dbCloud.collection("courtfiles").doc(id).onSnapshot(doc => {
-    if (doc.exists) {
-      currentData = doc.data().data
-      drawTable(currentData)
-      updateDashboard()
-    }
-  })
+function syncFirebase(){
+
+const id=workDate.value+"_"+uploadVersion
+
+dbCloud.collection("courtfiles").doc(id)
+.set({data:currentData},{merge:true})
+
+}
+
+function loadFirebase(){
+
+const id=workDate.value+"_"+uploadVersion
+
+if(unsubscribe) unsubscribe()
+
+unsubscribe=dbCloud.collection("courtfiles")
+.doc(id)
+.onSnapshot(doc=>{
+
+if(doc.exists){
+
+currentData=doc.data().data
+
+drawTable(currentData)
+
+updateDashboard()
+
+}
+
+})
+
 }
 
 /* ===================== DATE / VERSION CHANGE ===================== */
