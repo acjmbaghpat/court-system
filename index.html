@@ -353,7 +353,331 @@ updateDashboard()
 
 }
 
-/* बाकी आपका scanner, upload, table code unchanged रहेगा (exact same as you posted) */
+/* DATE CHANGE */
+
+workDate.addEventListener("change",()=>{
+loadVersions()
+loadCurrentVersion()
+loadLocal()
+loadFirebase()
+})
+
+/* VERSION CHANGE */
+
+versionSelect.addEventListener("change",()=>{
+
+uploadVersion=parseInt(versionSelect.value)
+
+saveCurrentVersion()
+
+loadLocal()
+loadFirebase()
+
+})
+
+/* UPLOAD */
+
+function uploadExcel(){
+
+let file=excelFile.files[0]
+
+if(!file){
+alert("Select Excel")
+return
+}
+
+let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
+
+if(!Array.isArray(versions))versions=[]
+
+uploadVersion=versions.length+1
+
+let reader=new FileReader()
+
+reader.onload=e=>{
+
+let wb=XLSX.read(e.target.result,{type:"binary"})
+
+let rows=XLSX.utils.sheet_to_json(
+wb.Sheets[wb.SheetNames[0]],
+{header:1,defval:""}
+)
+
+rows.shift()
+
+currentData=rows.map(r=>({
+
+srno:r[0]||"",
+caseno:String(r[1]||"").trim(),
+partyname:r[2]||"",
+section:r[3]||"",
+ps:r[4]||"",
+sent:"",
+received:"",
+receiveddate:"",
+nextdate:"",
+remark:""
+
+}))
+
+let opt=document.createElement("option")
+
+opt.value=uploadVersion
+opt.text="Upload "+uploadVersion
+
+versionSelect.appendChild(opt)
+versionSelect.value=uploadVersion
+
+versions.push(uploadVersion)
+
+saveVersions(versions)
+saveCurrentVersion()
+
+drawTable(currentData)
+updateDashboard()
+
+saveLocal()
+syncFirebase()
+
+excelFile.value=""
+
+}
+
+reader.readAsBinaryString(file)
+
+}
+
+/* SCANNER */
+
+function scanSent(){scanMode="SENT";startScanner()}
+function scanReceived(){scanMode="RECEIVED";startScanner()}
+
+async function startScanner(){
+
+scannerWrap.style.display="block"
+
+scanner=new ZXing.BrowserQRCodeReader()
+
+const devices=await scanner.listVideoInputDevices()
+
+let cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0]
+
+scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
+
+if(result){
+handleScan(result.text.trim())
+}
+
+})
+
+}
+
+function stopScanner(){
+
+if(scanner){
+scanner.reset()
+scanner=null
+}
+
+scannerWrap.style.display="none"
+
+}
+
+/* SCAN */
+
+function handleScan(code){
+
+let now=Date.now()
+
+if(code===lastScanCode && now-lastScanTime<1000)return
+
+lastScanCode=code
+lastScanTime=now
+
+let idx=currentData.findIndex(r=>r.caseno===code)
+
+if(idx===-1){
+alert("❌ File Not Found")
+speak("File not found")
+return
+}
+
+if(scanMode==="SENT"){
+
+if(currentData[idx].sent==="Sent"){
+alert("❌ Already Sent")
+speak("Already sent")
+return
+}
+
+currentData[idx].sent="Sent"
+alert("✅ Sent")
+speak("File sent")
+
+}
+
+if(scanMode==="RECEIVED"){
+
+if(currentData[idx].sent!=="Sent"){
+alert("❌ File Not Sent Yet")
+speak("File not sent yet")
+return
+}
+
+if(currentData[idx].received==="Received"){
+alert("❌ Already Received")
+speak("Already received")
+return
+}
+
+currentData[idx].received="Received"
+currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
+
+lastReceivedIndex=idx
+
+alert("📥 Received")
+speak("File received")
+
+nextDatePopup.style.display="block"
+
+setTimeout(()=>{
+nextDateInput.focus()
+if(nextDateInput.showPicker){
+nextDateInput.showPicker()
+}
+},200)
+
+}
+
+drawTable(currentData)
+scrollToFile(code)
+
+updateDashboard()
+saveLocal()
+syncFirebase()
+
+}
+
+/* SCROLL */
+
+function scrollToFile(caseno){
+
+let row=document.getElementById("row_"+caseno)
+
+if(!row)return
+
+row.scrollIntoView({behavior:"smooth",block:"center"})
+
+row.classList.add("highlight")
+
+setTimeout(()=>{
+row.classList.remove("highlight")
+},3000)
+
+}
+
+/* NEXT DATE */
+
+function saveNextDate(){
+
+if(lastReceivedIndex==null)return
+
+let selectedDate=nextDateInput.value
+
+currentData[lastReceivedIndex].nextdate=selectedDate
+
+nextDatePopup.style.display="none"
+
+drawTable(currentData)
+
+speakNextDate(selectedDate)
+
+saveLocal()
+syncFirebase()
+
+}
+
+function closePopup(){
+nextDatePopup.style.display="none"
+}
+
+/* REMARK */
+
+function updateRemark(i,val){
+currentData[i].remark=val
+saveLocal()
+syncFirebase()
+}
+
+/* TABLE */
+
+function drawTable(data){
+
+if(!data.length){
+table.innerHTML=""
+return
+}
+
+let headers=[
+"srno","caseno","partyname","section","ps",
+"sent","received","receiveddate","nextdate","remark"
+]
+
+let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
+
+data.forEach(r=>{
+
+let index=currentData.findIndex(x=>x.caseno===r.caseno)
+
+let row=`<tr id="row_${r.caseno}">`
+
+headers.forEach(k=>{
+
+if(k==="remark"){
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`
+}else{
+row+=`<td>${r[k]||""}</td>`
+}
+
+})
+
+row+="</tr>"
+
+html+=row
+
+})
+
+table.innerHTML=html
+
+}
+
+/* SEARCH */
+
+searchBox.addEventListener("input",()=>{
+
+let q=searchBox.value.toLowerCase()
+
+let filtered=q
+?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
+:currentData
+
+drawTable(filtered)
+
+})
+
+/* DOWNLOAD */
+
+function downloadExcel(){
+
+let ws=XLSX.utils.json_to_sheet(currentData)
+
+let wb=XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb,ws,"Court Data")
+
+XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
+
+}
 
 </script>
 
