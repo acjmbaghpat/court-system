@@ -124,7 +124,7 @@ animation:blink 1s 3;
 
 <script>
 
-/* ===================== IndexedDB ===================== */
+/* INDEXEDDB */
 
 let _db=null
 
@@ -149,11 +149,9 @@ req.onerror=()=>reject(req.error)
 
 async function idbGet(key){
 const db=await openDB()
-
 return new Promise((resolve,reject)=>{
 const req=db.transaction("data","readonly")
 .objectStore("data").get(key)
-
 req.onsuccess=()=>resolve(req.result?req.result.value:null)
 req.onerror=()=>reject(req.error)
 })
@@ -161,11 +159,9 @@ req.onerror=()=>reject(req.error)
 
 async function idbSet(key,value){
 const db=await openDB()
-
 return new Promise((resolve,reject)=>{
 const req=db.transaction("data","readwrite")
 .objectStore("data").put({key,value})
-
 req.onsuccess=()=>resolve()
 req.onerror=()=>reject(req.error)
 })
@@ -173,11 +169,9 @@ req.onerror=()=>reject(req.error)
 
 async function idbDelete(key){
 const db=await openDB()
-
 return new Promise((resolve,reject)=>{
 const req=db.transaction("data","readwrite")
 .objectStore("data").delete(key)
-
 req.onsuccess=()=>resolve()
 req.onerror=()=>reject(req.error)
 })
@@ -185,40 +179,30 @@ req.onerror=()=>reject(req.error)
 
 async function idbGetAllKeys(){
 const db=await openDB()
-
 return new Promise((resolve,reject)=>{
 const req=db.transaction("data","readonly")
 .objectStore("data").getAllKeys()
-
 req.onsuccess=()=>resolve(req.result)
 req.onerror=()=>reject(req.error)
 })
 }
 
-/* STORAGE METER */
+/* STORAGE */
 
 async function updateStorageUsage(){
-
 if(navigator.storage && navigator.storage.estimate){
-
 const {usage,quota}=await navigator.storage.estimate()
-
 const pct=((usage/quota)*100).toFixed(1)
-
 storageUsage.innerText=pct+"%"
-
+}
 }
 
-}
-
-/* DELETE OLD DATA */
+/* DELETE */
 
 async function deleteOldData(){
 
 const today=new Date()
-
 const keys=await idbGetAllKeys()
-
 let deleted=0
 
 for(const key of keys){
@@ -226,16 +210,13 @@ for(const key of keys){
 if(String(key).startsWith("court_")){
 
 const dateStr=String(key).replace("court_","").split("_")[0]
-
 const fileDate=new Date(dateStr)
 
 const diff=(today-fileDate)/(1000*60*60*24)
 
 if(diff>15){
-
 await idbDelete(key)
 deleted++
-
 }
 
 }
@@ -243,7 +224,6 @@ deleted++
 }
 
 alert(deleted+" records deleted")
-
 updateStorageUsage()
 
 }
@@ -257,7 +237,6 @@ projectId:"court-file-system"
 }
 
 firebase.initializeApp(firebaseConfig)
-
 const dbCloud=firebase.firestore()
 
 /* VARIABLES */
@@ -268,48 +247,36 @@ let scanMode=""
 let scanner=null
 let lastReceivedIndex=null
 let unsubscribe=null
-
 let lastScanCode=""
 let lastScanTime=0
 
 /* VOICE */
 
 function speak(msg){
-
 const speech=new SpeechSynthesisUtterance(msg)
-
 speech.lang="en-IN"
-
 speechSynthesis.speak(speech)
-
 }
 
 function speakNextDate(dateStr){
-
 if(!dateStr) return
-
 const d=new Date(dateStr)
-
 const day=d.getDate()
-
 const month=d.toLocaleString("en-IN",{month:"long"})
-
 speak("Next date "+day+" "+month)
-
 }
 
-/* STORAGE KEYS */
+/* KEYS */
 
 function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* PAGE LOAD */
+/* PAGE LOAD FIX */
 
 window.onload=async()=>{
 
 const today=new Date().toISOString().split("T")[0]
-
 workDate.value=today
 
 await loadCurrentVersion()
@@ -325,13 +292,9 @@ updateStorageUsage()
 /* DASHBOARD */
 
 function updateDashboard(){
-
 totalCount.innerText=currentData.length
-
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-
 receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
-
 }
 
 /* VERSION */
@@ -349,14 +312,10 @@ const saved=await idbGet(versionKey())
 if(!saved) return
 
 saved.forEach(v=>{
-
 const opt=document.createElement("option")
-
 opt.value=v
 opt.text="Upload "+v
-
 versionSelect.appendChild(opt)
-
 })
 
 versionSelect.value=uploadVersion
@@ -374,9 +333,7 @@ async function loadCurrentVersion(){
 const v=await idbGet(currentVersionKey())
 
 if(v){
-
 uploadVersion=parseInt(v)
-
 }
 
 }
@@ -384,11 +341,8 @@ uploadVersion=parseInt(v)
 /* LOCAL DATA */
 
 async function saveLocal(){
-
 await idbSet(dataKey(),currentData)
-
 updateStorageUsage()
-
 }
 
 async function loadLocal(){
@@ -396,13 +350,9 @@ async function loadLocal(){
 const saved=await idbGet(dataKey())
 
 if(saved){
-
 currentData=saved
-
 drawTable(currentData)
-
 updateDashboard()
-
 }
 
 }
@@ -413,7 +363,8 @@ function syncFirebase(){
 
 const id=workDate.value+"_"+uploadVersion
 
-dbCloud.collection("courtfiles").doc(id)
+dbCloud.collection("courtfiles")
+.doc(id)
 .set({data:currentData},{merge:true})
 
 }
@@ -433,7 +384,6 @@ if(doc.exists){
 currentData=doc.data().data
 
 drawTable(currentData)
-
 updateDashboard()
 
 }
