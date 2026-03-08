@@ -71,7 +71,7 @@ animation:blink 1s 3;
 <div class="card">📁 Total<br><span id="totalCount">0</span></div>
 <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
 <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-<div class="card">💾 Storage<br><span id="storageUsage">0%</span></div>
+<div class="card">💾 Storage<br><span id="storageUsage">...</span></div>
 </div>
 
 <div class="section">
@@ -124,546 +124,481 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE */
+/* ===================== INDEXEDDB WRAPPER =====================
+   localStorage की जगह IndexedDB use हो रहा है।
+   IndexedDB: 50MB – 1GB+ storage (browser/device के हिसाब से)
+   सभी operations async/await हैं।
+============================================================= */
 
-function updateStorageUsage(){
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-let percent=((used/total)*100).toFixed(1)
-storageUsage.innerText=percent+"%"
+let _db = null
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (_db) return resolve(_db)
+    const req = indexedDB.open("CourtFileDB", 1)
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore("data", { keyPath: "key" })
+    }
+    req.onsuccess = e => {
+      _db = e.target.result
+      resolve(_db)
+    }
+    req.onerror = () => reject(req.error)
+  })
 }
 
-/* DELETE OLD DATA */
-
-function deleteOldData(){
-
-let today=new Date()
-let deleted=0
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key=localStorage.key(i)
-
-if(key.startsWith("court_")){
-
-let dateStr=key.replace("court_","").split("_")[0]
-let fileDate=new Date(dateStr)
-
-let diff=(today-fileDate)/(1000*60*60*24)
-
-if(diff>15){
-
-localStorage.removeItem(key)
-deleted++
-
+async function idbGet(key) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("data", "readonly")
+      .objectStore("data").get(key)
+    req.onsuccess = () => resolve(req.result ? req.result.value : null)
+    req.onerror = () => reject(req.error)
+  })
 }
 
+async function idbSet(key, value) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("data", "readwrite")
+      .objectStore("data").put({ key, value })
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
 }
 
+async function idbDelete(key) {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("data", "readwrite")
+      .objectStore("data").delete(key)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
 }
 
-alert(deleted+" records deleted")
-updateStorageUsage()
-
+async function idbGetAllKeys() {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("data", "readonly")
+      .objectStore("data").getAllKeys()
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
 }
 
-/* FIREBASE */
+/* ===================== STORAGE USAGE ===================== */
 
-const firebaseConfig={
-apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-authDomain:"court-file-system.firebaseapp.com",
-projectId:"court-file-system"
+async function updateStorageUsage() {
+  if (navigator.storage && navigator.storage.estimate) {
+    const { usage, quota } = await navigator.storage.estimate()
+    const pct = ((usage / quota) * 100).toFixed(1)
+    const usedMB = (usage / (1024 * 1024)).toFixed(1)
+    const quotaMB = (quota / (1024 * 1024 * 1024)).toFixed(1)
+    storageUsage.innerText = `${pct}% (${usedMB}MB / ${quotaMB}GB)`
+  } else {
+    storageUsage.innerText = "N/A"
+  }
+}
+
+/* ===================== DELETE OLD DATA ===================== */
+
+async function deleteOldData() {
+  const today = new Date()
+  const allKeys = await idbGetAllKeys()
+  let deleted = 0
+
+  for (const key of allKeys) {
+    if (String(key).startsWith("court_")) {
+      const dateStr = String(key).replace("court_", "").split("_")[0]
+      const fileDate = new Date(dateStr)
+      const diff = (today - fileDate) / (1000 * 60 * 60 * 24)
+      if (diff > 15) {
+        await idbDelete(key)
+        deleted++
+      }
+    }
+  }
+
+  alert(deleted + " records deleted")
+  await updateStorageUsage()
+}
+
+/* ===================== FIREBASE ===================== */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+  authDomain: "court-file-system.firebaseapp.com",
+  projectId: "court-file-system"
 }
 
 firebase.initializeApp(firebaseConfig)
-const dbCloud=firebase.firestore()
+const dbCloud = firebase.firestore()
 
-/* VARIABLES */
+/* ===================== VARIABLES ===================== */
 
-let currentData=[]
-let uploadVersion=1
-let scanMode=""
-let scanner=null
-let lastReceivedIndex=null
-let unsubscribe=null
+let currentData = []
+let uploadVersion = 1
+let scanMode = ""
+let scanner = null
+let lastReceivedIndex = null
+let unsubscribe = null
 
-let lastScanCode=""
-let lastScanTime=0
+let lastScanCode = ""
+let lastScanTime = 0
 
-/* VOICE */
+/* ===================== VOICE ===================== */
 
-function speak(msg){
-let speech=new SpeechSynthesisUtterance(msg)
-speech.lang="en-IN"
-speech.rate=1
-speechSynthesis.speak(speech)
+function speak(msg) {
+  const speech = new SpeechSynthesisUtterance(msg)
+  speech.lang = "en-IN"
+  speech.rate = 1
+  speechSynthesis.speak(speech)
 }
 
-function speakNextDate(dateStr){
-
-if(!dateStr)return
-
-let d=new Date(dateStr)
-let day=d.getDate()
-let month=d.toLocaleString("en-IN",{month:"long"})
-
-speak("Next date "+day+" "+month)
-
+function speakNextDate(dateStr) {
+  if (!dateStr) return
+  const d = new Date(dateStr)
+  const day = d.getDate()
+  const month = d.toLocaleString("en-IN", { month: "long" })
+  speak("Next date " + day + " " + month)
 }
 
-/* STORAGE KEYS */
+/* ===================== STORAGE KEYS ===================== */
 
-function versionKey(){return "versions_"+workDate.value}
-function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
-function currentVersionKey(){return "current_version_"+workDate.value}
+function versionKey()        { return "versions_"         + workDate.value }
+function dataKey()           { return "court_"            + workDate.value + "_" + uploadVersion }
+function currentVersionKey() { return "current_version_"  + workDate.value }
 
-/* PAGE LOAD */
+/* ===================== PAGE LOAD ===================== */
 
-window.onload=()=>{
+window.onload = async () => {
+  const today = new Date().toISOString().split("T")[0]
+  workDate.value = today
 
-let today=new Date().toISOString().split("T")[0]
-
-workDate.value=today
-
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-updateStorageUsage()
-
+  await loadVersions()
+  await loadCurrentVersion()
+  await loadLocal()
+  loadFirebase()
+  await updateStorageUsage()
 }
 
-/* DASHBOARD */
+/* ===================== DASHBOARD ===================== */
 
-function updateDashboard(){
-
-totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
-
+function updateDashboard() {
+  totalCount.innerText    = currentData.length
+  sentCount.innerText     = currentData.filter(x => x.sent === "Sent").length
+  receivedCount.innerText = currentData.filter(x => x.received === "Received").length
 }
 
-/* VERSION STORAGE */
+/* ===================== VERSION STORAGE ===================== */
 
-function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr))
+async function saveVersions(arr) {
+  await idbSet(versionKey(), arr)
 }
 
-function loadVersions(){
+async function loadVersions() {
+  versionSelect.innerHTML = ""
+  const saved = await idbGet(versionKey())
+  if (!saved) return
+  saved.forEach(v => {
+    const opt = document.createElement("option")
+    opt.value = v
+    opt.text  = "Upload " + v
+    versionSelect.appendChild(opt)
+  })
+}
 
-versionSelect.innerHTML=""
+/* ===================== CURRENT VERSION ===================== */
 
-let saved=localStorage.getItem(versionKey())
+async function saveCurrentVersion() {
+  await idbSet(currentVersionKey(), uploadVersion)
+}
 
-if(!saved)return
+async function loadCurrentVersion() {
+  const v = await idbGet(currentVersionKey())
+  if (v) {
+    uploadVersion = parseInt(v)
+    versionSelect.value = uploadVersion
+  }
+}
 
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option")
-opt.value=v
-opt.text="Upload "+v
-versionSelect.appendChild(opt)
+/* ===================== LOCAL DATA ===================== */
+
+async function saveLocal() {
+  await idbSet(dataKey(), currentData)
+  await updateStorageUsage()
+}
+
+async function loadLocal() {
+  const saved = await idbGet(dataKey())
+  if (saved) {
+    currentData = saved
+    drawTable(currentData)
+    updateDashboard()
+  }
+}
+
+/* ===================== FIREBASE ===================== */
+
+function syncFirebase() {
+  const id = workDate.value + "_" + uploadVersion
+  dbCloud.collection("courtfiles").doc(id).set({ data: currentData }, { merge: true })
+}
+
+function loadFirebase() {
+  const id = workDate.value + "_" + uploadVersion
+
+  if (unsubscribe) {
+    unsubscribe()
+    unsubscribe = null
+  }
+
+  unsubscribe = dbCloud.collection("courtfiles").doc(id).onSnapshot(doc => {
+    if (doc.exists) {
+      currentData = doc.data().data
+      drawTable(currentData)
+      updateDashboard()
+    }
+  })
+}
+
+/* ===================== DATE / VERSION CHANGE ===================== */
+
+workDate.addEventListener("change", async () => {
+  await loadVersions()
+  await loadCurrentVersion()
+  await loadLocal()
+  loadFirebase()
 })
 
-}
-
-/* CURRENT VERSION */
-
-function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion)
-}
-
-function loadCurrentVersion(){
-
-let v=localStorage.getItem(currentVersionKey())
-
-if(v){
-uploadVersion=parseInt(v)
-versionSelect.value=uploadVersion
-}
-
-}
-
-/* LOCAL DATA */
-
-function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData))
-updateStorageUsage()
-}
-
-function loadLocal(){
-
-let saved=localStorage.getItem(dataKey())
-
-if(saved){
-currentData=JSON.parse(saved)
-drawTable(currentData)
-updateDashboard()
-}
-
-}
-
-/* FIREBASE */
-
-function syncFirebase(){
-
-let id=workDate.value+"_"+uploadVersion
-
-dbCloud.collection("courtfiles")
-.doc(id)
-.set({data:currentData},{merge:true})
-
-}
-
-function loadFirebase(){
-
-let id=workDate.value+"_"+uploadVersion
-
-if(unsubscribe){
-unsubscribe()
-unsubscribe=null
-}
-
-unsubscribe=dbCloud.collection("courtfiles")
-.doc(id)
-.onSnapshot(doc=>{
-
-if(doc.exists){
-
-currentData=doc.data().data
-
-drawTable(currentData)
-updateDashboard()
-
-}
-
+versionSelect.addEventListener("change", async () => {
+  uploadVersion = parseInt(versionSelect.value)
+  await saveCurrentVersion()
+  await loadLocal()
+  loadFirebase()
 })
 
+/* ===================== UPLOAD ===================== */
+
+async function uploadExcel() {
+  const file = excelFile.files[0]
+  if (!file) { alert("Select Excel"); return }
+
+  let versions = await idbGet(versionKey()) || []
+  if (!Array.isArray(versions)) versions = []
+
+  uploadVersion = versions.length + 1
+
+  const reader = new FileReader()
+
+  reader.onload = async e => {
+    const wb   = XLSX.read(e.target.result, { type: "binary" })
+    const rows = XLSX.utils.sheet_to_json(
+      wb.Sheets[wb.SheetNames[0]],
+      { header: 1, defval: "" }
+    )
+
+    rows.shift()
+
+    currentData = rows.map(r => ({
+      srno        : r[0] || "",
+      caseno      : String(r[1] || "").trim(),
+      partyname   : r[2] || "",
+      section     : r[3] || "",
+      ps          : r[4] || "",
+      sent        : "",
+      received    : "",
+      receiveddate: "",
+      nextdate    : "",
+      remark      : ""
+    }))
+
+    const opt = document.createElement("option")
+    opt.value = uploadVersion
+    opt.text  = "Upload " + uploadVersion
+    versionSelect.appendChild(opt)
+    versionSelect.value = uploadVersion
+
+    versions.push(uploadVersion)
+
+    await saveVersions(versions)
+    await saveCurrentVersion()
+
+    drawTable(currentData)
+    updateDashboard()
+
+    await saveLocal()
+    syncFirebase()
+
+    excelFile.value = ""
+  }
+
+  reader.readAsBinaryString(file)
 }
 
-/* DATE CHANGE */
+/* ===================== SCANNER ===================== */
 
-workDate.addEventListener("change",()=>{
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
+function scanSent()     { scanMode = "SENT";     startScanner() }
+function scanReceived() { scanMode = "RECEIVED"; startScanner() }
+
+async function startScanner() {
+  scannerWrap.style.display = "block"
+  scanner = new ZXing.BrowserQRCodeReader()
+  const devices = await scanner.listVideoInputDevices()
+  const cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0]
+  scanner.decodeFromVideoDevice(cam.deviceId, "video", result => {
+    if (result) handleScan(result.text.trim())
+  })
+}
+
+function stopScanner() {
+  if (scanner) { scanner.reset(); scanner = null }
+  scannerWrap.style.display = "none"
+}
+
+/* ===================== SCAN ===================== */
+
+async function handleScan(code) {
+  const now = Date.now()
+  if (code === lastScanCode && now - lastScanTime < 1000) return
+  lastScanCode = code
+  lastScanTime = now
+
+  const idx = currentData.findIndex(r => r.caseno === code)
+
+  if (idx === -1) {
+    alert("❌ File Not Found")
+    speak("File not found")
+    return
+  }
+
+  if (scanMode === "SENT") {
+    if (currentData[idx].sent === "Sent") {
+      alert("❌ Already Sent")
+      speak("Already sent")
+      return
+    }
+    currentData[idx].sent = "Sent"
+    alert("✅ Sent")
+    speak("File sent")
+  }
+
+  if (scanMode === "RECEIVED") {
+    if (currentData[idx].sent !== "Sent") {
+      alert("❌ File Not Sent Yet")
+      speak("File not sent yet")
+      return
+    }
+    if (currentData[idx].received === "Received") {
+      alert("❌ Already Received")
+      speak("Already received")
+      return
+    }
+    currentData[idx].received    = "Received"
+    currentData[idx].receiveddate = new Date().toISOString().split("T")[0]
+    lastReceivedIndex = idx
+    alert("📥 Received")
+    speak("File received")
+
+    nextDatePopup.style.display = "block"
+    setTimeout(() => {
+      nextDateInput.focus()
+      if (nextDateInput.showPicker) nextDateInput.showPicker()
+    }, 200)
+  }
+
+  drawTable(currentData)
+  scrollToFile(code)
+  updateDashboard()
+
+  await saveLocal()
+  syncFirebase()
+}
+
+/* ===================== SCROLL ===================== */
+
+function scrollToFile(caseno) {
+  const row = document.getElementById("row_" + caseno)
+  if (!row) return
+  row.scrollIntoView({ behavior: "smooth", block: "center" })
+  row.classList.add("highlight")
+  setTimeout(() => row.classList.remove("highlight"), 3000)
+}
+
+/* ===================== NEXT DATE ===================== */
+
+async function saveNextDate() {
+  if (lastReceivedIndex == null) return
+  const selectedDate = nextDateInput.value
+  currentData[lastReceivedIndex].nextdate = selectedDate
+  nextDatePopup.style.display = "none"
+  drawTable(currentData)
+  speakNextDate(selectedDate)
+  await saveLocal()
+  syncFirebase()
+}
+
+function closePopup() {
+  nextDatePopup.style.display = "none"
+}
+
+/* ===================== REMARK ===================== */
+
+async function updateRemark(i, val) {
+  currentData[i].remark = val
+  await saveLocal()
+  syncFirebase()
+}
+
+/* ===================== TABLE ===================== */
+
+function drawTable(data) {
+  if (!data.length) { table.innerHTML = ""; return }
+
+  const headers = [
+    "srno","caseno","partyname","section","ps",
+    "sent","received","receiveddate","nextdate","remark"
+  ]
+
+  let html = "<tr>" + headers.map(x => "<th>" + x + "</th>").join("") + "</tr>"
+
+  data.forEach(r => {
+    const index = currentData.findIndex(x => x.caseno === r.caseno)
+    let row = `<tr id="row_${r.caseno}">`
+
+    headers.forEach(k => {
+      if (k === "remark") {
+        row += `<td><input value="${r[k] || ""}" onchange="updateRemark(${index},this.value)"></td>`
+      } else {
+        row += `<td>${r[k] || ""}</td>`
+      }
+    })
+
+    row += "</tr>"
+    html += row
+  })
+
+  table.innerHTML = html
+}
+
+/* ===================== SEARCH ===================== */
+
+searchBox.addEventListener("input", () => {
+  const q = searchBox.value.toLowerCase()
+  const filtered = q
+    ? currentData.filter(r => Object.values(r).join(" ").toLowerCase().includes(q))
+    : currentData
+  drawTable(filtered)
 })
 
-/* VERSION CHANGE */
-
-versionSelect.addEventListener("change",()=>{
-
-uploadVersion=parseInt(versionSelect.value)
-
-saveCurrentVersion()
-
-loadLocal()
-loadFirebase()
-
-})
-
-/* UPLOAD */
-
-function uploadExcel(){
-
-let file=excelFile.files[0]
-
-if(!file){
-alert("Select Excel")
-return
-}
-
-let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
-
-if(!Array.isArray(versions))versions=[]
-
-uploadVersion=versions.length+1
-
-let reader=new FileReader()
-
-reader.onload=e=>{
-
-let wb=XLSX.read(e.target.result,{type:"binary"})
-
-let rows=XLSX.utils.sheet_to_json(
-wb.Sheets[wb.SheetNames[0]],
-{header:1,defval:""}
-)
-
-rows.shift()
-
-currentData=rows.map(r=>({
-
-srno:r[0]||"",
-caseno:String(r[1]||"").trim(),
-partyname:r[2]||"",
-section:r[3]||"",
-ps:r[4]||"",
-sent:"",
-received:"",
-receiveddate:"",
-nextdate:"",
-remark:""
-
-}))
-
-let opt=document.createElement("option")
-
-opt.value=uploadVersion
-opt.text="Upload "+uploadVersion
-
-versionSelect.appendChild(opt)
-versionSelect.value=uploadVersion
-
-versions.push(uploadVersion)
-
-saveVersions(versions)
-saveCurrentVersion()
-
-drawTable(currentData)
-updateDashboard()
-
-saveLocal()
-syncFirebase()
-
-excelFile.value=""
-
-}
-
-reader.readAsBinaryString(file)
-
-}
-
-/* SCANNER */
-
-function scanSent(){scanMode="SENT";startScanner()}
-function scanReceived(){scanMode="RECEIVED";startScanner()}
-
-async function startScanner(){
-
-scannerWrap.style.display="block"
-
-scanner=new ZXing.BrowserQRCodeReader()
-
-const devices=await scanner.listVideoInputDevices()
-
-let cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[0]
-
-scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-
-if(result){
-handleScan(result.text.trim())
-}
-
-})
-
-}
-
-function stopScanner(){
-
-if(scanner){
-scanner.reset()
-scanner=null
-}
-
-scannerWrap.style.display="none"
-
-}
-
-/* SCAN */
-
-function handleScan(code){
-
-let now=Date.now()
-
-if(code===lastScanCode && now-lastScanTime<1000)return
-
-lastScanCode=code
-lastScanTime=now
-
-let idx=currentData.findIndex(r=>r.caseno===code)
-
-if(idx===-1){
-alert("❌ File Not Found")
-speak("File not found")
-return
-}
-
-if(scanMode==="SENT"){
-
-if(currentData[idx].sent==="Sent"){
-alert("❌ Already Sent")
-speak("Already sent")
-return
-}
-
-currentData[idx].sent="Sent"
-alert("✅ Sent")
-speak("File sent")
-
-}
-
-if(scanMode==="RECEIVED"){
-
-if(currentData[idx].sent!=="Sent"){
-alert("❌ File Not Sent Yet")
-speak("File not sent yet")
-return
-}
-
-if(currentData[idx].received==="Received"){
-alert("❌ Already Received")
-speak("Already received")
-return
-}
-
-currentData[idx].received="Received"
-currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-
-lastReceivedIndex=idx
-
-alert("📥 Received")
-speak("File received")
-
-nextDatePopup.style.display="block"
-
-setTimeout(()=>{
-nextDateInput.focus()
-if(nextDateInput.showPicker){
-nextDateInput.showPicker()
-}
-},200)
-
-}
-
-drawTable(currentData)
-scrollToFile(code)
-
-updateDashboard()
-saveLocal()
-syncFirebase()
-
-}
-
-/* SCROLL */
-
-function scrollToFile(caseno){
-
-let row=document.getElementById("row_"+caseno)
-
-if(!row)return
-
-row.scrollIntoView({behavior:"smooth",block:"center"})
-
-row.classList.add("highlight")
-
-setTimeout(()=>{
-row.classList.remove("highlight")
-},3000)
-
-}
-
-/* NEXT DATE */
-
-function saveNextDate(){
-
-if(lastReceivedIndex==null)return
-
-let selectedDate=nextDateInput.value
-
-currentData[lastReceivedIndex].nextdate=selectedDate
-
-nextDatePopup.style.display="none"
-
-drawTable(currentData)
-
-speakNextDate(selectedDate)
-
-saveLocal()
-syncFirebase()
-
-}
-
-function closePopup(){
-nextDatePopup.style.display="none"
-}
-
-/* REMARK */
-
-function updateRemark(i,val){
-currentData[i].remark=val
-saveLocal()
-syncFirebase()
-}
-
-/* TABLE */
-
-function drawTable(data){
-
-if(!data.length){
-table.innerHTML=""
-return
-}
-
-let headers=[
-"srno","caseno","partyname","section","ps",
-"sent","received","receiveddate","nextdate","remark"
-]
-
-let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
-
-data.forEach(r=>{
-
-let index=currentData.findIndex(x=>x.caseno===r.caseno)
-
-let row=`<tr id="row_${r.caseno}">`
-
-headers.forEach(k=>{
-
-if(k==="remark"){
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`
-}else{
-row+=`<td>${r[k]||""}</td>`
-}
-
-})
-
-row+="</tr>"
-
-html+=row
-
-})
-
-table.innerHTML=html
-
-}
-
-/* SEARCH */
-
-searchBox.addEventListener("input",()=>{
-
-let q=searchBox.value.toLowerCase()
-
-let filtered=q
-?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
-:currentData
-
-drawTable(filtered)
-
-})
-
-/* DOWNLOAD */
-
-function downloadExcel(){
-
-let ws=XLSX.utils.json_to_sheet(currentData)
-
-let wb=XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-
-XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
-
+/* ===================== DOWNLOAD ===================== */
+
+function downloadExcel() {
+  const ws = XLSX.utils.json_to_sheet(currentData)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Court Data")
+  XLSX.writeFile(wb, "Court_" + workDate.value + ".xlsx")
 }
 
 </script>
