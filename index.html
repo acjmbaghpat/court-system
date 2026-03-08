@@ -150,7 +150,9 @@ let key = localStorage.key(i)
 
 if(key.startsWith("court_")){
 
-let dateStr = key.replace("court_","").split("_")[0]
+let parts = key.split("_")
+let dateStr = parts[1]
+
 let fileDate = new Date(dateStr)
 
 let diff = (today - fileDate)/(1000*60*60*24)
@@ -194,32 +196,6 @@ let unsubscribe=null;
 
 let lastScanCode="";
 let lastScanTime=0;
-
-/* VOICE */
-
-function speak(msg){
-
-let speech=new SpeechSynthesisUtterance(msg);
-
-speech.lang="en-IN";
-speech.rate=1;
-
-speechSynthesis.speak(speech);
-
-}
-
-function speakNextDate(dateStr){
-
-if(!dateStr) return;
-
-let d = new Date(dateStr);
-
-let day = d.getDate();
-let month = d.toLocaleString("en-IN",{month:"long"});
-
-speak("Next date " + day + " " + month);
-
-}
 
 /* STORAGE KEYS */
 
@@ -339,7 +315,7 @@ if(doc.exists){
 
 let cloudData = doc.data().data || [];
 
-if(cloudData.length > currentData.length){
+if(currentData.length === 0){
 currentData = cloudData;
 }
 
@@ -508,7 +484,6 @@ let idx=currentData.findIndex(r=>r.caseno===code);
 
 if(idx===-1){
 alert("❌ File Not Found");
-speak("File not found");
 return;
 }
 
@@ -516,13 +491,11 @@ if(scanMode==="SENT"){
 
 if(currentData[idx].sent==="Sent"){
 alert("❌ Already Sent");
-speak("Already sent");
 return;
 }
 
 currentData[idx].sent="Sent";
 alert("✅ Sent");
-speak("File sent");
 
 }
 
@@ -530,13 +503,11 @@ if(scanMode==="RECEIVED"){
 
 if(currentData[idx].sent!=="Sent"){
 alert("❌ File Not Sent Yet");
-speak("File not sent yet");
 return;
 }
 
 if(currentData[idx].received==="Received"){
 alert("❌ Already Received");
-speak("Already received");
 return;
 }
 
@@ -546,17 +517,7 @@ currentData[idx].receiveddate=new Date().toISOString().split("T")[0];
 
 lastReceivedIndex=idx;
 
-alert("📥 Received");
-speak("File received");
-
 nextDatePopup.style.display="block";
-
-setTimeout(()=>{
-nextDateInput.focus();
-if(nextDateInput.showPicker){
-nextDateInput.showPicker();
-}
-},200);
 
 }
 
@@ -594,7 +555,7 @@ row.classList.remove("highlight");
 
 function saveNextDate(){
 
-if(lastReceivedIndex==null) return;
+if(lastReceivedIndex === null) return;
 
 let selectedDate = nextDateInput.value;
 
@@ -602,9 +563,9 @@ currentData[lastReceivedIndex].nextdate = selectedDate;
 
 nextDatePopup.style.display="none";
 
-drawTable(currentData);
+lastReceivedIndex = null;
 
-speakNextDate(selectedDate);
+drawTable(currentData);
 
 saveLocal();
 syncFirebase();
@@ -612,7 +573,11 @@ syncFirebase();
 }
 
 function closePopup(){
-nextDatePopup.style.display="none"
+
+nextDatePopup.style.display="none";
+
+lastReceivedIndex = null;
+
 }
 
 /* REMARK */
@@ -639,16 +604,14 @@ let headers=[
 
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>";
 
-data.forEach(r=>{
-
-let index=currentData.findIndex(x=>x.caseno===r.caseno);
+data.forEach((r,i)=>{
 
 let row=`<tr id="row_${r.caseno}">`;
 
 headers.forEach(k=>{
 
 if(k==="remark"){
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${index},this.value)"></td>`;
+row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`;
 }else{
 row+=`<td>${r[k]||""}</td>`;
 }
