@@ -424,6 +424,8 @@ async function uploadExcel() {
 
     await saveVersions(versions)
     await saveCurrentVersion()
+     await loadVersions()
+versionSelect.value = uploadVersion
 
     drawTable(currentData)
     updateDashboard()
