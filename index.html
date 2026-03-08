@@ -18,32 +18,90 @@ body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 
 input,button,select{
-width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
+width:100%;
+padding:12px;
+margin-top:8px;
+font-size:15px;
+border-radius:10px;
+border:1px solid #ccc
 }
 
 button{background:#1976d2;color:#fff;border:none}
 
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.dashboard{
+display:grid;
+grid-template-columns:1fr 1fr 1fr 1fr;
+gap:10px;
+margin-bottom:12px
+}
 
-.card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
+.card{
+background:#fff;
+padding:10px;
+border-radius:10px;
+text-align:center;
+font-weight:600
+}
 
-.table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
+.table-wrap{
+background:#fff;
+border-radius:12px;
+overflow-x:auto
+}
 
-table{width:100%;border-collapse:collapse;min-width:900px}
+table{
+width:100%;
+border-collapse:collapse;
+min-width:900px
+}
 
-th,td{border:1px solid #ddd;padding:6px;font-size:13px}
+th,td{
+border:1px solid #ddd;
+padding:6px;
+font-size:13px
+}
 
-#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
+#scannerWrap{
+position:fixed;
+inset:0;
+background:#000;
+display:none;
+z-index:999
+}
 
-#video{width:100%;height:75vh;object-fit:cover}
+#video{
+width:100%;
+height:75vh;
+object-fit:cover
+}
 
-#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
+#scanBox{
+position:absolute;
+top:25%;
+left:15%;
+width:70%;
+height:50%;
+border:4px solid #00ff00;
+border-radius:10px
+}
 
-#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
+#nextDatePopup{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.6);
+display:none;
+z-index:1000
+}
 
-#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
+#popupBox{
+background:#fff;
+margin:25% auto;
+padding:20px;
+width:90%;
+border-radius:12px
+}
 
 .highlight{
 background:#fff3cd;
@@ -124,54 +182,6 @@ animation:blink 1s 3;
 
 <script>
 
-/* STORAGE */
-
-function updateStorageUsage(){
-
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-
-let percent=((used/total)*100).toFixed(1)
-
-storageUsage.innerText=percent+"%"
-
-}
-
-/* DELETE OLD DATA */
-
-function deleteOldData(){
-
-let today=new Date()
-let deleted=0
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key=localStorage.key(i)
-
-if(key && key.startsWith("court_")){
-
-let dateStr=key.replace("court_","").split("_")[0]
-
-let fileDate=new Date(dateStr)
-
-let diff=(today-fileDate)/(1000*60*60*24)
-
-if(diff>15){
-
-localStorage.removeItem(key)
-deleted++
-
-}
-
-}
-
-}
-
-alert(deleted+" records deleted")
-updateStorageUsage()
-
-}
-
 /* FIREBASE */
 
 const firebaseConfig={
@@ -201,6 +211,45 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
+/* STORAGE */
+
+function updateStorageUsage(){
+
+let total=5*1024*1024
+let used=new Blob(Object.values(localStorage)).size
+let percent=((used/total)*100).toFixed(1)
+
+storageUsage.innerText=percent+"%"
+
+}
+
+/* DELETE OLD DATA */
+
+function deleteOldData(){
+
+let today=new Date()
+
+for(let i=localStorage.length-1;i>=0;i--){
+
+let key=localStorage.key(i)
+
+if(key && key.startsWith("court_")){
+
+let dateStr=key.replace("court_","").split("_")[0]
+let fileDate=new Date(dateStr)
+
+let diff=(today-fileDate)/(1000*60*60*24)
+
+if(diff>15)localStorage.removeItem(key)
+
+}
+
+}
+
+updateStorageUsage()
+
+}
+
 /* PAGE LOAD */
 
 window.onload=()=>{
@@ -212,11 +261,9 @@ workDate.value=today
 loadVersions()
 
 setTimeout(()=>{
-
 loadCurrentVersion()
 loadLocal()
 loadFirebase()
-
 },50)
 
 updateStorageUsage()
@@ -270,13 +317,8 @@ function loadCurrentVersion(){
 let v=localStorage.getItem(currentVersionKey())
 
 if(v){
-
 uploadVersion=parseInt(v)
-
-setTimeout(()=>{
 versionSelect.value=uploadVersion
-},20)
-
 }
 
 }
@@ -349,17 +391,6 @@ updateDashboard()
 
 }
 
-/* DATE CHANGE */
-
-workDate.addEventListener("change",()=>{
-
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-
-})
-
 /* VERSION CHANGE */
 
 versionSelect.addEventListener("change",()=>{
@@ -375,79 +406,6 @@ loadLocal()
 loadFirebase()
 
 })
-
-/* बाकी scanner, upload, table, search, download functions आपके code जैसे ही रहेंगे */
-
-</script>
-
-</body>
-</html>
-
-/* PAGE LOAD */
-
-window.onload=()=>{
-
-let today=new Date().toISOString().split("T")[0]
-
-workDate.value=today
-
-loadVersions()
-
-setTimeout(()=>{
-
-loadCurrentVersion()
-
-loadLocal()
-
-loadFirebase()
-
-},50)
-
-updateStorageUsage()
-
-}
-
-/* DASHBOARD */
-
-function updateDashboard(){
-
-totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==1).length
-receivedCount.innerText=currentData.filter(x=>x.received==1).length
-
-}
-
-/* DELETE OLD DATA */
-
-function deleteOldData(){
-
-let today=new Date()
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key=localStorage.key(i)
-
-if(key && key.startsWith("court_")){
-
-let dateStr=key.replace("court_","").split("_")[0]
-
-let fileDate=new Date(dateStr)
-
-let diff=(today-fileDate)/(1000*60*60*24)
-
-if(diff>60)localStorage.removeItem(key)
-
-}
-
-}
-
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-
-updateStorageUsage()
-
-}
 
 /* UPLOAD */
 
@@ -481,23 +439,13 @@ caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
 section:r[3]||"",
 ps:r[4]||"",
-sent:0,
-received:0,
+sent:"",
+received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
 
 }))
-
-buildIndex()
-buildSearch()
-
-let opt=document.createElement("option")
-opt.value=uploadVersion
-opt.text="Upload "+uploadVersion
-
-versionSelect.appendChild(opt)
-versionSelect.value=uploadVersion
 
 versions.push(uploadVersion)
 
@@ -509,8 +457,6 @@ updateDashboard()
 
 saveLocal()
 syncFirebase()
-
-excelFile.value=""
 
 }
 
@@ -543,7 +489,10 @@ if(result)handleScan(result.text.trim())
 
 function stopScanner(){
 
-if(scanner){scanner.reset();scanner=null}
+if(scanner){
+scanner.reset()
+scanner=null
+}
 
 scannerWrap.style.display="none"
 
@@ -560,15 +509,15 @@ if(code===lastScanCode && now-lastScanTime<1000)return
 lastScanCode=code
 lastScanTime=now
 
-let idx=caseIndex[code]
+let idx=currentData.findIndex(r=>r.caseno===code)
 
-if(idx==null){alert("File Not Found");return}
+if(idx===-1){alert("File Not Found");return}
 
-if(scanMode==="SENT")currentData[idx].sent=1
+if(scanMode==="SENT")currentData[idx].sent="Sent"
 
 if(scanMode==="RECEIVED"){
 
-currentData[idx].received=1
+currentData[idx].received="Received"
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
 
 lastReceivedIndex=idx
@@ -602,19 +551,16 @@ syncFirebase()
 
 }
 
-function closePopup(){nextDatePopup.style.display="none"}
+function closePopup(){
+nextDatePopup.style.display="none"
+}
 
 /* REMARK */
 
 function updateRemark(i,val){
-
-if(currentData[i].remark===val)return
-
 currentData[i].remark=val
-
 saveLocal()
 syncFirebase()
-
 }
 
 /* TABLE */
@@ -632,18 +578,14 @@ let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
 
 data.forEach((r,i)=>{
 
-let row=`<tr>`
+let row=`<tr id="row_${r.caseno}">`
 
 headers.forEach(k=>{
 
 if(k==="remark"){
-
 row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`
-
 }else{
-
 row+=`<td>${r[k]||""}</td>`
-
 }
 
 })
@@ -665,7 +607,7 @@ searchBox.addEventListener("input",()=>{
 let q=searchBox.value.toLowerCase()
 
 let filtered=q
-?currentData.filter((r,i)=>searchIndex[i].includes(q))
+?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
 :currentData
 
 drawTable(filtered)
