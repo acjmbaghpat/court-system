@@ -103,17 +103,6 @@ width:90%;
 border-radius:12px
 }
 
-.highlight{
-background:#fff3cd;
-animation:blink 1s 3;
-}
-
-@keyframes blink{
-0%{background:#fff3cd}
-50%{background:#ffffff}
-100%{background:#fff3cd}
-}
-
 </style>
 </head>
 
@@ -205,7 +194,6 @@ let key=localStorage.key(i)
 if(key && key.startsWith("court_")){
 
 let dateStr=key.replace("court_","").split("_")[0]
-
 let fileDate=new Date(dateStr)
 
 let diff=(today-fileDate)/(1000*60*60*24)
@@ -222,11 +210,6 @@ deleted++
 }
 
 alert(deleted+" records deleted")
-
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-
 updateStorageUsage()
 
 }
@@ -240,7 +223,6 @@ projectId:"court-file-system"
 }
 
 firebase.initializeApp(firebaseConfig)
-
 const dbCloud=firebase.firestore()
 
 /* VARIABLES */
@@ -252,8 +234,25 @@ let scanner=null
 let lastReceivedIndex=null
 let unsubscribe=null
 
-let lastScanCode=""
-let lastScanTime=0
+let caseIndex={}
+let searchIndex=[]
+
+let syncTimer
+
+/* INDEX BUILDERS */
+
+function buildIndex(){
+caseIndex={}
+currentData.forEach((r,i)=>{
+caseIndex[r.caseno]=i
+})
+}
+
+function buildSearch(){
+searchIndex=currentData.map(r=>
+Object.values(r).join(" ").toLowerCase()
+)
+}
 
 /* STORAGE KEYS */
 
@@ -266,7 +265,6 @@ function currentVersionKey(){return "current_version_"+workDate.value}
 window.onload=()=>{
 
 let today=new Date().toISOString().split("T")[0]
-
 workDate.value=today
 
 loadVersions()
@@ -283,8 +281,8 @@ updateStorageUsage()
 function updateDashboard(){
 
 totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
+sentCount.innerText=currentData.filter(x=>x.sent==1).length
+receivedCount.innerText=currentData.filter(x=>x.received==1).length
 
 }
 
@@ -341,6 +339,8 @@ let saved=localStorage.getItem(dataKey())
 
 if(saved){
 currentData=JSON.parse(saved)
+buildIndex()
+buildSearch()
 drawTable(currentData)
 updateDashboard()
 }
@@ -359,6 +359,16 @@ dbCloud.collection("courtfiles")
 
 }
 
+function delayedSync(){
+
+clearTimeout(syncTimer)
+
+syncTimer=setTimeout(()=>{
+syncFirebase()
+},2000)
+
+}
+
 function loadFirebase(){
 
 let id=workDate.value+"_"+uploadVersion
@@ -368,9 +378,6 @@ unsubscribe()
 unsubscribe=null
 }
 
-currentData=[]
-drawTable([])
-
 unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
 .onSnapshot(doc=>{
@@ -378,6 +385,9 @@ unsubscribe=dbCloud.collection("courtfiles")
 if(doc.exists){
 
 currentData=doc.data().data
+
+buildIndex()
+buildSearch()
 
 drawTable(currentData)
 updateDashboard()
@@ -387,6 +397,31 @@ updateDashboard()
 })
 
 }
+
+/* DATE CHANGE */
+
+workDate.addEventListener("change",()=>{
+loadVersions()
+loadCurrentVersion()
+loadLocal()
+loadFirebase()
+})
+
+/* VERSION CHANGE */
+
+versionSelect.addEventListener("change",()=>{
+
+uploadVersion=parseInt(versionSelect.value)
+
+saveCurrentVersion()
+
+currentData=[]
+drawTable([])
+
+loadLocal()
+loadFirebase()
+
+})
 
 /* UPLOAD */
 
@@ -423,13 +458,24 @@ caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
 section:r[3]||"",
 ps:r[4]||"",
-sent:"",
-received:"",
+sent:0,
+received:0,
 receiveddate:"",
 nextdate:"",
 remark:""
 
 }))
+
+buildIndex()
+buildSearch()
+
+let opt=document.createElement("option")
+
+opt.value=uploadVersion
+opt.text="Upload "+uploadVersion
+
+versionSelect.appendChild(opt)
+versionSelect.value=uploadVersion
 
 versions.push(uploadVersion)
 
@@ -490,36 +536,29 @@ scannerWrap.style.display="none"
 
 function handleScan(code){
 
-let now=Date.now()
+let idx=caseIndex[code]
 
-if(code===lastScanCode && now-lastScanTime<1000)return
-
-lastScanCode=code
-lastScanTime=now
-
-let idx=currentData.findIndex(r=>r.caseno===code)
-
-if(idx===-1){
-alert("❌ File Not Found")
+if(idx==null){
+alert("File Not Found")
 return
 }
 
 if(scanMode==="SENT"){
-currentData[idx].sent="Sent"
+currentData[idx].sent=1
 }
 
 if(scanMode==="RECEIVED"){
-currentData[idx].received="Received"
+currentData[idx].received=1
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
 lastReceivedIndex=idx
 nextDatePopup.style.display="block"
 }
 
 drawTable(currentData)
-
 updateDashboard()
+
 saveLocal()
-syncFirebase()
+delayedSync()
 
 }
 
@@ -536,7 +575,7 @@ nextDatePopup.style.display="none"
 drawTable(currentData)
 
 saveLocal()
-syncFirebase()
+delayedSync()
 
 }
 
@@ -547,9 +586,14 @@ nextDatePopup.style.display="none"
 /* REMARK */
 
 function updateRemark(i,val){
+
+if(currentData[i].remark===val)return
+
 currentData[i].remark=val
+
 saveLocal()
-syncFirebase()
+delayedSync()
+
 }
 
 /* TABLE */
@@ -570,7 +614,7 @@ let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
 
 data.forEach((r,i)=>{
 
-let row=`<tr id="row_${r.caseno}">`
+let row=`<tr>`
 
 headers.forEach(k=>{
 
@@ -599,7 +643,7 @@ searchBox.addEventListener("input",()=>{
 let q=searchBox.value.toLowerCase()
 
 let filtered=q
-?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
+?currentData.filter((r,i)=>searchIndex[i].includes(q))
 :currentData
 
 drawTable(filtered)
