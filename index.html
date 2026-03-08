@@ -171,48 +171,18 @@ border-radius:12px
 
 <script>
 
-/* STORAGE */
+/* VARIABLES */
 
-function updateStorageUsage(){
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-let percent=((used/total)*100).toFixed(1)
-storageUsage.innerText=percent+"%"
-}
-
-/* DELETE OLD DATA */
-
-function deleteOldData(){
-
-let today=new Date()
-let deleted=0
-
-for(let i=localStorage.length-1;i>=0;i--){
-
-let key=localStorage.key(i)
-
-if(key && key.startsWith("court_")){
-
-let dateStr=key.replace("court_","").split("_")[0]
-let fileDate=new Date(dateStr)
-
-let diff=(today-fileDate)/(1000*60*60*24)
-
-if(diff>60){
-
-localStorage.removeItem(key)
-deleted++
-
-}
-
-}
-
-}
-
-alert(deleted+" records deleted")
-updateStorageUsage()
-
-}
+let currentData=[]
+let caseIndex={}
+let searchIndex=[]
+let uploadVersion=1
+let scanMode=""
+let scanner=null
+let lastReceivedIndex=null
+let unsubscribe=null
+let lastScanCode=""
+let lastScanTime=0
 
 /* FIREBASE */
 
@@ -225,68 +195,68 @@ projectId:"court-file-system"
 firebase.initializeApp(firebaseConfig)
 const dbCloud=firebase.firestore()
 
-/* VARIABLES */
-
-let currentData=[]
-let uploadVersion=1
-let scanMode=""
-let scanner=null
-let lastReceivedIndex=null
-let unsubscribe=null
-
-let caseIndex={}
-let searchIndex=[]
-
-let syncTimer
-
-/* INDEX BUILDERS */
-
-function buildIndex(){
-caseIndex={}
-currentData.forEach((r,i)=>{
-caseIndex[r.caseno]=i
-})
-}
-
-function buildSearch(){
-searchIndex=currentData.map(r=>
-Object.values(r).join(" ").toLowerCase()
-)
-}
-
 /* STORAGE KEYS */
 
 function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* PAGE LOAD */
+/* INDEX BUILD */
 
-window.onload=()=>{
+function buildIndex(){
+caseIndex={}
+currentData.forEach((r,i)=>{caseIndex[r.caseno]=i})
+}
 
-let today=new Date().toISOString().split("T")[0]
-workDate.value=today
+function buildSearch(){
+searchIndex=currentData.map(r=>Object.values(r).join(" ").toLowerCase())
+}
 
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
+/* STORAGE */
+
+function saveLocal(){
+
+try{
+localStorage.setItem(dataKey(),JSON.stringify(currentData))
+}catch(e){
+alert("Storage full")
+}
 
 updateStorageUsage()
 
 }
 
-/* DASHBOARD */
+function loadLocal(){
 
-function updateDashboard(){
+let saved=localStorage.getItem(dataKey())
 
-totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==1).length
-receivedCount.innerText=currentData.filter(x=>x.received==1).length
+if(saved){
+
+currentData=JSON.parse(saved)
+
+buildIndex()
+buildSearch()
+
+drawTable(currentData)
+updateDashboard()
 
 }
 
-/* VERSION STORAGE */
+}
+
+/* STORAGE METER */
+
+function updateStorageUsage(){
+
+let total=5*1024*1024
+let used=new Blob(Object.values(localStorage)).size
+let percent=((used/total)*100).toFixed(1)
+
+storageUsage.innerText=percent+"%"
+
+}
+
+/* VERSION */
 
 function saveVersions(arr){
 localStorage.setItem(versionKey(),JSON.stringify(arr))
@@ -301,15 +271,16 @@ let saved=localStorage.getItem(versionKey())
 if(!saved)return
 
 JSON.parse(saved).forEach(v=>{
+
 let opt=document.createElement("option")
 opt.value=v
 opt.text="Upload "+v
+
 versionSelect.appendChild(opt)
+
 })
 
 }
-
-/* CURRENT VERSION */
 
 function saveCurrentVersion(){
 localStorage.setItem(currentVersionKey(),uploadVersion)
@@ -326,27 +297,6 @@ versionSelect.value=uploadVersion
 
 }
 
-/* LOCAL DATA */
-
-function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData))
-updateStorageUsage()
-}
-
-function loadLocal(){
-
-let saved=localStorage.getItem(dataKey())
-
-if(saved){
-currentData=JSON.parse(saved)
-buildIndex()
-buildSearch()
-drawTable(currentData)
-updateDashboard()
-}
-
-}
-
 /* FIREBASE */
 
 function syncFirebase(){
@@ -359,24 +309,11 @@ dbCloud.collection("courtfiles")
 
 }
 
-function delayedSync(){
-
-clearTimeout(syncTimer)
-
-syncTimer=setTimeout(()=>{
-syncFirebase()
-},2000)
-
-}
-
 function loadFirebase(){
 
 let id=workDate.value+"_"+uploadVersion
 
-if(unsubscribe){
-unsubscribe()
-unsubscribe=null
-}
+if(unsubscribe)unsubscribe()
 
 unsubscribe=dbCloud.collection("courtfiles")
 .doc(id)
@@ -384,7 +321,11 @@ unsubscribe=dbCloud.collection("courtfiles")
 
 if(doc.exists){
 
-currentData=doc.data().data
+let cloudData=doc.data().data||[]
+
+if(cloudData.length>currentData.length){
+currentData=cloudData
+}
 
 buildIndex()
 buildSearch()
@@ -398,30 +339,62 @@ updateDashboard()
 
 }
 
-/* DATE CHANGE */
+/* PAGE LOAD */
 
-workDate.addEventListener("change",()=>{
+window.onload=()=>{
+
+let today=new Date().toISOString().split("T")[0]
+
+workDate.value=today
+
 loadVersions()
 loadCurrentVersion()
 loadLocal()
 loadFirebase()
-})
+updateStorageUsage()
 
-/* VERSION CHANGE */
+}
 
-versionSelect.addEventListener("change",()=>{
+/* DASHBOARD */
 
-uploadVersion=parseInt(versionSelect.value)
+function updateDashboard(){
 
-saveCurrentVersion()
+totalCount.innerText=currentData.length
+sentCount.innerText=currentData.filter(x=>x.sent==1).length
+receivedCount.innerText=currentData.filter(x=>x.received==1).length
 
-currentData=[]
-drawTable([])
+}
 
+/* DELETE OLD DATA */
+
+function deleteOldData(){
+
+let today=new Date()
+
+for(let i=localStorage.length-1;i>=0;i--){
+
+let key=localStorage.key(i)
+
+if(key && key.startsWith("court_")){
+
+let dateStr=key.replace("court_","").split("_")[0]
+
+let fileDate=new Date(dateStr)
+
+let diff=(today-fileDate)/(1000*60*60*24)
+
+if(diff>60)localStorage.removeItem(key)
+
+}
+
+}
+
+loadVersions()
+loadCurrentVersion()
 loadLocal()
-loadFirebase()
+updateStorageUsage()
 
-})
+}
 
 /* UPLOAD */
 
@@ -429,10 +402,7 @@ function uploadExcel(){
 
 let file=excelFile.files[0]
 
-if(!file){
-alert("Select Excel")
-return
-}
+if(!file){alert("Select Excel");return}
 
 let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
 
@@ -470,7 +440,6 @@ buildIndex()
 buildSearch()
 
 let opt=document.createElement("option")
-
 opt.value=uploadVersion
 opt.text="Upload "+uploadVersion
 
@@ -513,9 +482,7 @@ let cam=devices[devices.length-1]
 
 scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
 
-if(result){
-handleScan(result.text.trim())
-}
+if(result)handleScan(result.text.trim())
 
 })
 
@@ -523,10 +490,7 @@ handleScan(result.text.trim())
 
 function stopScanner(){
 
-if(scanner){
-scanner.reset()
-scanner=null
-}
+if(scanner){scanner.reset();scanner=null}
 
 scannerWrap.style.display="none"
 
@@ -536,29 +500,35 @@ scannerWrap.style.display="none"
 
 function handleScan(code){
 
+let now=Date.now()
+
+if(code===lastScanCode && now-lastScanTime<1000)return
+
+lastScanCode=code
+lastScanTime=now
+
 let idx=caseIndex[code]
 
-if(idx==null){
-alert("File Not Found")
-return
-}
+if(idx==null){alert("File Not Found");return}
 
-if(scanMode==="SENT"){
-currentData[idx].sent=1
-}
+if(scanMode==="SENT")currentData[idx].sent=1
 
 if(scanMode==="RECEIVED"){
+
 currentData[idx].received=1
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
+
 lastReceivedIndex=idx
+
 nextDatePopup.style.display="block"
+
 }
 
 drawTable(currentData)
 updateDashboard()
 
 saveLocal()
-delayedSync()
+syncFirebase()
 
 }
 
@@ -575,13 +545,11 @@ nextDatePopup.style.display="none"
 drawTable(currentData)
 
 saveLocal()
-delayedSync()
+syncFirebase()
 
 }
 
-function closePopup(){
-nextDatePopup.style.display="none"
-}
+function closePopup(){nextDatePopup.style.display="none"}
 
 /* REMARK */
 
@@ -592,7 +560,7 @@ if(currentData[i].remark===val)return
 currentData[i].remark=val
 
 saveLocal()
-delayedSync()
+syncFirebase()
 
 }
 
@@ -600,10 +568,7 @@ delayedSync()
 
 function drawTable(data){
 
-if(!data.length){
-table.innerHTML=""
-return
-}
+if(!data.length){table.innerHTML="";return}
 
 let headers=[
 "srno","caseno","partyname","section","ps",
@@ -619,9 +584,13 @@ let row=`<tr>`
 headers.forEach(k=>{
 
 if(k==="remark"){
+
 row+=`<td><input value="${r[k]||""}" onchange="updateRemark(${i},this.value)"></td>`
+
 }else{
+
 row+=`<td>${r[k]||""}</td>`
+
 }
 
 })
