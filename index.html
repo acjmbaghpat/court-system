@@ -136,7 +136,7 @@
     tr:last-child td { border-bottom: none; }
     tr:hover { background: #f1f5f9; }
 
-    td input { margin: 0; padding: 6px 10px; }
+    td input { margin: 0; padding: 6px 10px; width: 100%; box-sizing: border-box; }
 
     /* Modals */
     #scannerWrap, #nextDatePopup {
@@ -170,7 +170,7 @@
         width: 60%; height: 50%;
         border: 3px dashed #10b981;
         border-radius: 12px;
-        box-shadow: 0 0 0 4000px rgba(0,0,0,0.4); /* Focus effect */
+        box-shadow: 0 0 0 4000px rgba(0,0,0,0.4); 
         pointer-events: none;
     }
 
@@ -267,17 +267,29 @@
 
 <script>
 /* UTILS */
-const escapeHTML = str => String(str).replace(/[&<>'"]/g, 
-    tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag])
-);
+const escapeHTML = str => {
+    if (str === null || str === undefined) return "";
+    return String(str).replace(/[&<>'"]/g, 
+        tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag)
+    );
+};
+
+// Safe accessors to avoid execution order issues
+function getWorkDate() { return document.getElementById('workDate') ? document.getElementById('workDate').value : ""; }
+function getVersionSelect() { return document.getElementById('versionSelect'); }
+
+function versionKey(){ return "versions_" + getWorkDate(); }
+function dataKey(){ return "court_" + getWorkDate() + "_" + uploadVersion; }
+function currentVersionKey(){ return "current_version_" + getWorkDate(); }
 
 /* SPEAKER */
 function speak(msg){
-    window.speechSynthesis.cancel(); // Prevent queue buildup
+    if(!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
     let speech = new SpeechSynthesisUtterance(msg);
     speech.lang = "en-IN";
     speech.rate = 1;
-    speechSynthesis.speak(speech);
+    window.speechSynthesis.speak(speech);
 }
 
 function speakNextDate(dateStr){
@@ -290,10 +302,13 @@ function speakNextDate(dateStr){
 
 /* STORAGE */
 function updateStorageUsage(){
-    let total = 5 * 1024 * 1024; // 5MB generic localstorage limit
-    let used = new Blob(Object.values(localStorage)).size;
-    let percent = ((used/total)*100).toFixed(1);
-    document.getElementById('storageUsage').innerText = percent + "%";
+    try {
+        let total = 5 * 1024 * 1024;
+        let used = new Blob(Object.values(localStorage)).size;
+        let percent = ((used/total)*100).toFixed(1);
+        let el = document.getElementById('storageUsage');
+        if(el) el.innerText = percent + "%";
+    } catch(e) { console.error("Storage error:", e); }
 }
 
 /* DELETE OLD */
@@ -303,13 +318,15 @@ function deleteOldData(){
     let deleted = 0;
     for(let i = localStorage.length-1; i >= 0; i--){
         let key = localStorage.key(i);
-        if(key.startsWith("court_")){
+        if(key && key.startsWith("court_")){
             let parts = key.split("_");
-            let fileDate = new Date(parts[1]);
-            let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
-            if(diff > 30){
-                localStorage.removeItem(key);
-                deleted++;
+            if(parts[1]) {
+                let fileDate = new Date(parts[1]);
+                let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
+                if(diff > 30){
+                    localStorage.removeItem(key);
+                    deleted++;
+                }
             }
         }
     }
@@ -336,29 +353,66 @@ let unsubscribe = null;
 let lastScanCode = "";
 let lastScanTime = 0;
 
-const workDate = document.getElementById('workDate');
-const versionSelect = document.getElementById('versionSelect');
-
-function versionKey(){ return "versions_" + workDate.value; }
-function dataKey(){ return "court_" + workDate.value + "_" + uploadVersion; }
-function currentVersionKey(){ return "current_version_" + workDate.value; }
-
-/* LOAD */
-window.onload = () => {
+/* INITIALIZATION */
+window.addEventListener('DOMContentLoaded', () => {
+    let dateInput = document.getElementById('workDate');
+    let vSelect = document.getElementById('versionSelect');
+    
+    // Set today's date
     let today = new Date().toISOString().split("T")[0];
-    workDate.value = today;
-    loadVersions();
-    loadCurrentVersion();
-    loadLocal();
-    loadFirebase();
-    updateStorageUsage();
-};
+    dateInput.value = today;
+    
+    // Setup listeners
+    dateInput.addEventListener("change", () => {
+        loadVersions();
+        loadCurrentVersion();
+        currentData = [];
+        drawTable([]);
+        updateDashboard();
+        loadLocal();
+        loadFirebase();
+    });
+
+    vSelect.addEventListener("change", () => {
+        uploadVersion = parseInt(vSelect.value);
+        saveCurrentVersion();
+        currentData = [];
+        drawTable([]);
+        updateDashboard();
+        loadLocal();
+        loadFirebase();
+    });
+
+    // Delegated listener for remarks
+    document.getElementById('table').addEventListener('change', function(e) {
+        if(e.target && e.target.classList.contains('remark-input')) {
+            let caseNo = e.target.getAttribute('data-caseno');
+            updateRemark(caseNo, e.target.value);
+        }
+    });
+
+    // Delegated listener for search
+    document.getElementById('searchBox').addEventListener("input", (e) => {
+        let q = e.target.value.toLowerCase();
+        let filtered = q ? currentData.filter(r => Object.values(r).join(" ").toLowerCase().includes(q)) : currentData;
+        drawTable(filtered);
+    });
+
+    // Run initial loaders safely
+    try { loadVersions(); } catch(e){}
+    try { loadCurrentVersion(); } catch(e){}
+    try { loadLocal(); } catch(e){ console.error("Error loading local data:", e); }
+    try { loadFirebase(); } catch(e){ console.error("Error loading firebase data:", e); }
+    try { updateStorageUsage(); } catch(e){}
+});
 
 /* DASHBOARD */
 function updateDashboard(){
-    document.getElementById('totalCount').innerText = currentData.length;
-    document.getElementById('sentCount').innerText = currentData.filter(x => x.sent === "Sent").length;
-    document.getElementById('receivedCount').innerText = currentData.filter(x => x.received === "Received").length;
+    try {
+        document.getElementById('totalCount').innerText = currentData.length;
+        document.getElementById('sentCount').innerText = currentData.filter(x => x.sent === "Sent").length;
+        document.getElementById('receivedCount').innerText = currentData.filter(x => x.received === "Received").length;
+    } catch(e) {}
 }
 
 /* VERSION MGMT */
@@ -367,14 +421,16 @@ function saveVersions(arr){
 }
 
 function loadVersions(){
-    versionSelect.innerHTML = "";
+    let vSelect = getVersionSelect();
+    if(!vSelect) return;
+    vSelect.innerHTML = "";
     let saved = localStorage.getItem(versionKey());
     if(!saved) return;
     JSON.parse(saved).forEach(v => {
         let opt = document.createElement("option");
         opt.value = v;
         opt.text = "Upload " + v;
-        versionSelect.appendChild(opt);
+        vSelect.appendChild(opt);
     });
 }
 
@@ -386,7 +442,8 @@ function loadCurrentVersion(){
     let v = localStorage.getItem(currentVersionKey());
     if(v){
         uploadVersion = parseInt(v);
-        versionSelect.value = uploadVersion;
+        let vSelect = getVersionSelect();
+        if(vSelect) vSelect.value = uploadVersion;
     }
 }
 
@@ -407,12 +464,13 @@ function loadLocal(){
 
 /* FIREBASE SYNC */
 function syncFirebase(){
-    let id = workDate.value + "_" + uploadVersion;
-    dbCloud.collection("courtfiles").doc(id).set({data: currentData}, {merge: true});
+    let id = getWorkDate() + "_" + uploadVersion;
+    dbCloud.collection("courtfiles").doc(id).set({data: currentData}, {merge: true})
+           .catch(e => console.error("Firebase save error:", e));
 }
 
 function loadFirebase(){
-    let id = workDate.value + "_" + uploadVersion;
+    let id = getWorkDate() + "_" + uploadVersion;
     if(unsubscribe) unsubscribe();
     
     unsubscribe = dbCloud.collection("courtfiles").doc(id)
@@ -426,86 +484,64 @@ function loadFirebase(){
                 saveLocal();
             }
         }
-    });
+    }, err => console.error("Firebase sync error:", err));
 }
-
-/* EVENT LISTENERS: DATE/VERSION */
-workDate.addEventListener("change", () => {
-    loadVersions();
-    loadCurrentVersion();
-    currentData = [];
-    drawTable([]);
-    updateDashboard();
-    loadLocal();
-    loadFirebase();
-});
-
-versionSelect.addEventListener("change", () => {
-    uploadVersion = parseInt(versionSelect.value);
-    saveCurrentVersion();
-    currentData = [];
-    drawTable([]);
-    updateDashboard();
-    loadLocal();
-    loadFirebase();
-});
-
-/* EVENT LISTENER: REMARKS */
-document.getElementById('table').addEventListener('change', function(e) {
-    if(e.target && e.target.classList.contains('remark-input')) {
-        let caseNo = e.target.getAttribute('data-caseno');
-        updateRemark(caseNo, e.target.value);
-    }
-});
 
 /* EXCEL UPLOAD */
 function uploadExcel(){
-    let file = document.getElementById('excelFile').files[0];
-    if(!file){ alert("Please select an Excel file"); return; }
+    let fileInput = document.getElementById('excelFile');
+    if(!fileInput || !fileInput.files[0]){ alert("Please select an Excel file"); return; }
+    let file = fileInput.files[0];
 
     let versions;
     try { versions = JSON.parse(localStorage.getItem(versionKey()) || "[]"); } 
-    catch { versions = []; }
+    catch(e) { versions = []; }
 
     uploadVersion = versions.length + 1;
     let reader = new FileReader();
 
     reader.onload = e => {
-        let wb = XLSX.read(e.target.result, {type: "binary"});
-        let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ""});
-        
-        rows.shift(); // Remove header row
-        
-        currentData = rows.map(r => ({
-            srno: r[0] || "",
-            caseno: String(r[1] || "").trim(),
-            partyname: r[2] || "",
-            section: r[3] || "",
-            ps: r[4] || "",
-            sent: "",
-            received: "",
-            receiveddate: "",
-            nextdate: "",
-            remark: ""
-        }));
+        try {
+            let wb = XLSX.read(e.target.result, {type: "binary"});
+            let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ""});
+            
+            rows.shift(); // Remove header row
+            
+            currentData = rows.map(r => ({
+                srno: String(r[0] || ""),
+                caseno: String(r[1] || "").trim(),
+                partyname: String(r[2] || ""),
+                section: String(r[3] || ""),
+                ps: String(r[4] || ""),
+                sent: "",
+                received: "",
+                receiveddate: "",
+                nextdate: "",
+                remark: ""
+            }));
 
-        let opt = document.createElement("option");
-        opt.value = uploadVersion;
-        opt.text = "Upload " + uploadVersion;
-        versionSelect.appendChild(opt);
-        versionSelect.value = uploadVersion;
+            let vSelect = getVersionSelect();
+            let opt = document.createElement("option");
+            opt.value = uploadVersion;
+            opt.text = "Upload " + uploadVersion;
+            vSelect.appendChild(opt);
+            vSelect.value = uploadVersion;
 
-        versions.push(uploadVersion);
-        saveVersions(versions);
-        saveCurrentVersion();
+            versions.push(uploadVersion);
+            saveVersions(versions);
+            saveCurrentVersion();
 
-        drawTable(currentData);
-        updateDashboard();
-        saveLocal();
-        syncFirebase();
+            drawTable(currentData);
+            updateDashboard();
+            saveLocal();
+            syncFirebase();
 
-        speak("Excel uploaded successfully");
-        document.getElementById('excelFile').value = "";
+            speak("Excel uploaded successfully");
+            fileInput.value = "";
+        } catch(err) {
+            console.error(err);
+            alert("Error reading Excel. Please check the file format.");
+        }
     };
     reader.readAsBinaryString(file);
 }
@@ -539,12 +575,12 @@ function stopScanner(){
 /* HANDLE SCAN RESULT */
 function handleScan(code){
     let now = Date.now();
-    if(code === lastScanCode && now - lastScanTime < 1500) return; // Prevent double scan debounce
+    if(code === lastScanCode && now - lastScanTime < 1500) return; // Prevent double scan
 
     lastScanCode = code;
     lastScanTime = now;
 
-    let idx = currentData.findIndex(r => r.caseno === code);
+    let idx = currentData.findIndex(r => String(r.caseno) === String(code));
 
     if(idx === -1){
         alert("File Not Found");
@@ -597,8 +633,7 @@ function finalizeScanState(idx, code) {
 
 /* SCROLL & HIGHLIGHT */
 function scrollToFile(caseno){
-    // Caseno could have spaces/chars so we querySelector carefully
-    let safeId = "row_" + caseno.replace(/[^a-zA-Z0-9_-]/g, '_'); 
+    let safeId = "row_" + String(caseno).replace(/[^a-zA-Z0-9_-]/g, '_'); 
     let row = document.getElementById(safeId);
     if(!row) return;
     
@@ -611,62 +646,4 @@ function scrollToFile(caseno){
 function saveNextDate(){
     if(lastReceivedIndex === null) return;
     let selectedDate = document.getElementById('nextDateInput').value;
-    if(!selectedDate) { alert("Please select a date."); return; }
-    
-    currentData[lastReceivedIndex].nextdate = selectedDate;
-    document.getElementById('nextDatePopup').style.display = "none";
-    lastReceivedIndex = null;
-    
-    drawTable(currentData);
-    speakNextDate(selectedDate);
-    saveLocal();
-    syncFirebase();
-}
-
-function closePopup(){
-    document.getElementById('nextDatePopup').style.display = "none";
-    lastReceivedIndex = null;
-}
-
-/* REMARK UPDATE */
-function updateRemark(caseNo, val){
-    let idx = currentData.findIndex(r => r.caseno === caseNo);
-    if(idx !== -1){
-        currentData[idx].remark = val;
-        saveLocal();
-        syncFirebase();
-    }
-}
-
-/* TABLE RENDERING */
-function drawTable(data){
-    const tableObj = document.getElementById('table');
-    if(!data || !data.length){ tableObj.innerHTML = ""; return; }
-
-    let headers = ["srno", "caseno", "partyname", "section", "ps", "sent", "received", "receiveddate", "nextdate", "remark"];
-    
-    let html = "<thead><tr>" + headers.map(x => "<th>" + escapeHTML(x) + "</th>").join("") + "</tr></thead><tbody>";
-
-    data.forEach(r => {
-        let safeId = "row_" + r.caseno.replace(/[^a-zA-Z0-9_-]/g, '_');
-        let row = `<tr id="${safeId}">`;
-        
-        headers.forEach(k => {
-            let val = r[k] || "";
-            if(k === "remark"){
-                row += `<td><input type="text" class="remark-input" data-caseno="${escapeHTML(r.caseno)}" value="${escapeHTML(val)}" placeholder="Add remark..."></td>`;
-            } else {
-                row += `<td>${escapeHTML(val)}</td>`;
-            }
-        });
-        row += "</tr>";
-        html += row;
-    });
-    
-    html += "</tbody>";
-    tableObj.innerHTML = html;
-}
-
-/* SEARCH */
-document.getElementById('searchBox').addEventListener("input", (e) => {
-    let q = e.target.val
+    if(!selectedDate) { alert("Please select a date.")
