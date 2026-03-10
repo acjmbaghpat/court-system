@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Court File Manager</title>
@@ -7,633 +7,666 @@
 
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
+    :root {
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --success: #16a34a;
+        --warning: #ca8a04;
+        --danger: #dc2626;
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --border: #e2e8f0;
+        --radius: 12px;
+    }
 
-body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
+    * { box-sizing: border-box; }
 
-.section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
+    body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text-main);
+        margin: 0;
+        padding: 16px;
+        max-width: 1400px;
+        margin-inline: auto;
+    }
 
-input,button,select{
-width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
-}
+    h3 { margin-top: 0; color: var(--text-main); font-size: 1.1rem; }
 
-button{background:#1976d2;color:#fff;border:none}
+    .section {
+        background: var(--surface);
+        padding: 20px;
+        margin-bottom: 16px;
+        border-radius: var(--radius);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border: 1px solid var(--border);
+    }
 
-.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .flex-row > * { flex: 1; min-width: 200px; }
 
-.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+    input, select {
+        width: 100%;
+        padding: 10px 14px;
+        margin-top: 6px;
+        font-size: 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        transition: border-color 0.2s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
 
-.card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
+    button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        background: var(--primary);
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:active { transform: scale(0.98); }
+    
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #b91c1c; }
 
-.table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
+    .scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-table{width:100%;border-collapse:collapse;min-width:900px}
+    .dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
 
-th,td{border:1px solid #ddd;padding:6px;font-size:13px}
+    .card {
+        background: var(--surface);
+        padding: 16px;
+        border-radius: var(--radius);
+        text-align: center;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        color: var(--text-muted);
+    }
+    .card span { font-size: 1.5rem; color: var(--text-main); font-weight: 700; }
 
-#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
+    .table-wrap {
+        background: var(--surface);
+        border-radius: var(--radius);
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: 60vh;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
 
-#video{width:100%;height:75vh;object-fit:cover}
+    table { width: 100%; border-collapse: collapse; min-width: 1000px; text-align: left; }
+    
+    th {
+        position: sticky;
+        top: 0;
+        background: var(--primary);
+        color: white;
+        padding: 12px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        z-index: 10;
+    }
+    
+    td { border-bottom: 1px solid var(--border); padding: 10px 12px; font-size: 14px; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: #f1f5f9; }
 
-#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
+    td input { margin: 0; padding: 6px 10px; }
 
-#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
+    /* Modals */
+    #scannerWrap, #nextDatePopup {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(4px);
+        display: none;
+        z-index: 999;
+    }
 
-#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
+    .modal-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: 500px;
+        background: var(--surface);
+        padding: 24px;
+        border-radius: var(--radius);
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
 
-.highlight{
-background:#fff3cd;
-animation:blink 1s 3;
-}
+    #video { width: 100%; border-radius: 8px; background: #000; height: 300px; object-fit: cover; }
 
-@keyframes blink{
-0%{background:#fff3cd}
-50%{background:#ffffff}
-100%{background:#fff3cd}
-}
+    #scanBox {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60%; height: 50%;
+        border: 3px dashed #10b981;
+        border-radius: 12px;
+        box-shadow: 0 0 0 4000px rgba(0,0,0,0.4); /* Focus effect */
+        pointer-events: none;
+    }
 
+    .video-container { position: relative; overflow: hidden; border-radius: 8px; margin-bottom: 16px;}
+
+    .highlight {
+        background: #fef08a !important;
+        animation: blink 1s ease-in-out 3;
+    }
+
+    @keyframes blink {
+        0% { background: #fef08a; }
+        50% { background: #ffffff; }
+        100% { background: #fef08a; }
+    }
 </style>
 </head>
 
 <body>
 
-<div class="section">
-<h3>📅 Working Date</h3>
-<input type="date" id="workDate">
-<select id="versionSelect"></select>
+<div class="section flex-row">
+    <div>
+        <h3>📅 Working Date</h3>
+        <input type="date" id="workDate">
+    </div>
+    <div>
+        <h3>🔄 Version</h3>
+        <select id="versionSelect"></select>
+    </div>
 </div>
 
 <div class="dashboard">
-<div class="card">📁 Total<br><span id="totalCount">0</span></div>
-<div class="card">📤 Sent<br><span id="sentCount">0</span></div>
-<div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-<div class="card">💾 Storage<br><span id="storageUsage">0%</span></div>
+    <div class="card">📁 Total<span id="totalCount">0</span></div>
+    <div class="card">📤 Sent<span id="sentCount">0</span></div>
+    <div class="card">📥 Received<span id="receivedCount">0</span></div>
+    <div class="card">💾 Storage<span id="storageUsage">0%</span></div>
+</div>
+
+<div class="section flex-row">
+    <div>
+        <h3>📥 Excel Upload</h3>
+        <input type="file" id="excelFile" accept=".xlsx, .xls">
+    </div>
+    <div>
+        <h3 style="opacity:0; margin-bottom: 0;">Action</h3>
+        <button onclick="uploadExcel()">Upload Excel</button>
+    </div>
 </div>
 
 <div class="section">
-<h3>📥 Excel Upload</h3>
-<input type="file" id="excelFile">
-<button onclick="uploadExcel()">Upload Excel</button>
+    <h3>🔍 Search</h3>
+    <input type="text" id="searchBox" placeholder="Search case no, party name, section...">
 </div>
 
 <div class="section">
-<h3>🔍 Search</h3>
-<input type="text" id="searchBox">
-</div>
-
-<div class="section">
-<h3>📷 Scan</h3>
-<div class="scan-grid">
-<button onclick="scanSent()">📤 Scan SENT</button>
-<button onclick="scanReceived()">📥 Scan RECEIVED</button>
-</div>
-</div>
-
-<div class="section">
-<button onclick="downloadExcel()">📤 Download Excel</button>
+    <h3>📷 Scan Operations</h3>
+    <div class="scan-grid">
+        <button onclick="scanSent()">📤 Scan SENT</button>
+        <button class="btn-success" onclick="scanReceived()">📥 Scan RECEIVED</button>
+    </div>
 </div>
 
 <div class="table-wrap">
-<table id="table"></table>
+    <table id="table"></table>
 </div>
 
-<div class="section">
-<button onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
+<div class="section scan-grid" style="margin-top: 16px;">
+    <button class="btn-success" onclick="downloadExcel()">📤 Download Data as Excel</button>
+    <button class="btn-danger" onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
 </div>
 
 <div id="scannerWrap">
-<div style="position:relative">
-<video id="video"></video>
-<div id="scanBox"></div>
-</div>
-<button onclick="stopScanner()">Close Scanner</button>
+    <div class="modal-content">
+        <h3 style="text-align:center; margin-bottom:16px;" id="scannerTitle">Scan QR Code</h3>
+        <div class="video-container">
+            <video id="video"></video>
+            <div id="scanBox"></div>
+        </div>
+        <button class="btn-danger" onclick="stopScanner()">Cancel / Close Scanner</button>
+    </div>
 </div>
 
 <div id="nextDatePopup">
-<div id="popupBox">
-<h3>📅 Next Date</h3>
-<input type="date" id="nextDateInput">
-<button onclick="saveNextDate()">Save</button>
-<button onclick="closePopup()">Cancel</button>
-</div>
+    <div class="modal-content">
+        <h3>📅 Assign Next Date</h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom: 12px;">File received successfully. Please assign the next hearing date.</p>
+        <input type="date" id="nextDateInput">
+        <div class="scan-grid" style="margin-top: 16px;">
+            <button class="btn-success" onclick="saveNextDate()">Save</button>
+            <button class="btn-danger" onclick="closePopup()">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <script>
+/* UTILS */
+const escapeHTML = str => String(str).replace(/[&<>'"]/g, 
+    tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag])
+);
 
 /* SPEAKER */
-
 function speak(msg){
-let speech=new SpeechSynthesisUtterance(msg)
-speech.lang="en-IN"
-speech.rate=1
-speechSynthesis.speak(speech)
+    window.speechSynthesis.cancel(); // Prevent queue buildup
+    let speech = new SpeechSynthesisUtterance(msg);
+    speech.lang = "en-IN";
+    speech.rate = 1;
+    speechSynthesis.speak(speech);
 }
 
 function speakNextDate(dateStr){
-if(!dateStr)return
-let d=new Date(dateStr)
-let day=d.getDate()
-let month=d.toLocaleString("en-IN",{month:"long"})
-speak("Next date "+day+" "+month)
+    if(!dateStr) return;
+    let d = new Date(dateStr);
+    let day = d.getDate();
+    let month = d.toLocaleString("en-IN", {month:"long"});
+    speak("Next date " + day + " " + month);
 }
 
 /* STORAGE */
-
 function updateStorageUsage(){
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-let percent=((used/total)*100).toFixed(1)
-storageUsage.innerText=percent+"%"
+    let total = 5 * 1024 * 1024; // 5MB generic localstorage limit
+    let used = new Blob(Object.values(localStorage)).size;
+    let percent = ((used/total)*100).toFixed(1);
+    document.getElementById('storageUsage').innerText = percent + "%";
 }
 
 /* DELETE OLD */
-
 function deleteOldData(){
-let today=new Date()
-let deleted=0
-for(let i=localStorage.length-1;i>=0;i--){
-let key=localStorage.key(i)
-if(key.startsWith("court_")){
-let parts=key.split("_")
-let fileDate=new Date(parts[1])
-let diff=(today-fileDate)/(1000*60*60*24)
-if(diff>30){
-localStorage.removeItem(key)
-deleted++
-}
-}
-}
-alert(deleted+" old records deleted")
-updateStorageUsage()
-}
-
-/* FIREBASE */
-
-const firebaseConfig={
-apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-authDomain:"court-file-system.firebaseapp.com",
-projectId:"court-file-system"
+    if(!confirm("Are you sure you want to delete data older than 30 days?")) return;
+    let today = new Date();
+    let deleted = 0;
+    for(let i = localStorage.length-1; i >= 0; i--){
+        let key = localStorage.key(i);
+        if(key.startsWith("court_")){
+            let parts = key.split("_");
+            let fileDate = new Date(parts[1]);
+            let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
+            if(diff > 30){
+                localStorage.removeItem(key);
+                deleted++;
+            }
+        }
+    }
+    alert(deleted + " old records deleted");
+    updateStorageUsage();
 }
 
-firebase.initializeApp(firebaseConfig)
-const dbCloud=firebase.firestore()
+/* FIREBASE CONFIG */
+const firebaseConfig = {
+    apiKey: "AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+    authDomain: "court-file-system.firebaseapp.com",
+    projectId: "court-file-system"
+};
+firebase.initializeApp(firebaseConfig);
+const dbCloud = firebase.firestore();
 
-let currentData=[]
-let uploadVersion=1
-let scanMode=""
-let scanner=null
-let lastReceivedIndex=null
-let unsubscribe=null
+/* STATE */
+let currentData = [];
+let uploadVersion = 1;
+let scanMode = "";
+let scanner = null;
+let lastReceivedIndex = null;
+let unsubscribe = null;
+let lastScanCode = "";
+let lastScanTime = 0;
 
-let lastScanCode=""
-let lastScanTime=0
+const workDate = document.getElementById('workDate');
+const versionSelect = document.getElementById('versionSelect');
 
-function versionKey(){return "versions_"+workDate.value}
-function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
-function currentVersionKey(){return "current_version_"+workDate.value}
+function versionKey(){ return "versions_" + workDate.value; }
+function dataKey(){ return "court_" + workDate.value + "_" + uploadVersion; }
+function currentVersionKey(){ return "current_version_" + workDate.value; }
 
 /* LOAD */
-
-window.onload=()=>{
-let today=new Date().toISOString().split("T")[0]
-workDate.value=today
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-updateStorageUsage()
-}
+window.onload = () => {
+    let today = new Date().toISOString().split("T")[0];
+    workDate.value = today;
+    loadVersions();
+    loadCurrentVersion();
+    loadLocal();
+    loadFirebase();
+    updateStorageUsage();
+};
 
 /* DASHBOARD */
-
 function updateDashboard(){
-totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
+    document.getElementById('totalCount').innerText = currentData.length;
+    document.getElementById('sentCount').innerText = currentData.filter(x => x.sent === "Sent").length;
+    document.getElementById('receivedCount').innerText = currentData.filter(x => x.received === "Received").length;
 }
 
-/* VERSION */
-
+/* VERSION MGMT */
 function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr))
+    localStorage.setItem(versionKey(), JSON.stringify(arr));
 }
 
 function loadVersions(){
-versionSelect.innerHTML=""
-let saved=localStorage.getItem(versionKey())
-if(!saved)return
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option")
-opt.value=v
-opt.text="Upload "+v
-versionSelect.appendChild(opt)
-})
+    versionSelect.innerHTML = "";
+    let saved = localStorage.getItem(versionKey());
+    if(!saved) return;
+    JSON.parse(saved).forEach(v => {
+        let opt = document.createElement("option");
+        opt.value = v;
+        opt.text = "Upload " + v;
+        versionSelect.appendChild(opt);
+    });
 }
 
 function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion)
+    localStorage.setItem(currentVersionKey(), uploadVersion);
 }
 
 function loadCurrentVersion(){
-let v=localStorage.getItem(currentVersionKey())
-if(v){
-uploadVersion=parseInt(v)
-versionSelect.value=uploadVersion
-}
+    let v = localStorage.getItem(currentVersionKey());
+    if(v){
+        uploadVersion = parseInt(v);
+        versionSelect.value = uploadVersion;
+    }
 }
 
-/* LOCAL */
-
+/* LOCAL DATA */
 function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData))
-updateStorageUsage()
+    localStorage.setItem(dataKey(), JSON.stringify(currentData));
+    updateStorageUsage();
 }
 
 function loadLocal(){
-let saved=localStorage.getItem(dataKey())
-if(saved){
-currentData=JSON.parse(saved)
-drawTable(currentData)
-updateDashboard()
-}
+    let saved = localStorage.getItem(dataKey());
+    if(saved){
+        currentData = JSON.parse(saved);
+        drawTable(currentData);
+        updateDashboard();
+    }
 }
 
-/* FIREBASE */
-
+/* FIREBASE SYNC */
 function syncFirebase(){
-let id=workDate.value+"_"+uploadVersion
-dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true})
+    let id = workDate.value + "_" + uploadVersion;
+    dbCloud.collection("courtfiles").doc(id).set({data: currentData}, {merge: true});
 }
 
 function loadFirebase(){
-let id=workDate.value+"_"+uploadVersion
-if(unsubscribe)unsubscribe()
-unsubscribe=dbCloud.collection("courtfiles").doc(id)
-.onSnapshot(doc=>{
-if(doc.exists){
-let cloudData=doc.data().data||[]
-if(cloudData.length>currentData.length){
-currentData=cloudData
+    let id = workDate.value + "_" + uploadVersion;
+    if(unsubscribe) unsubscribe();
+    
+    unsubscribe = dbCloud.collection("courtfiles").doc(id)
+    .onSnapshot(doc => {
+        if(doc.exists){
+            let cloudData = doc.data().data || [];
+            if(cloudData.length > currentData.length || JSON.stringify(cloudData) !== JSON.stringify(currentData)){
+                currentData = cloudData;
+                drawTable(currentData);
+                updateDashboard();
+                saveLocal();
+            }
+        }
+    });
 }
-drawTable(currentData)
-updateDashboard()
-}
-})
-}
 
-/* DATE CHANGE */
+/* EVENT LISTENERS: DATE/VERSION */
+workDate.addEventListener("change", () => {
+    loadVersions();
+    loadCurrentVersion();
+    currentData = [];
+    drawTable([]);
+    updateDashboard();
+    loadLocal();
+    loadFirebase();
+});
 
-workDate.addEventListener("change",()=>{
-loadVersions()
-loadCurrentVersion()
-currentData=[]
-drawTable([])
-updateDashboard()
-loadLocal()
-loadFirebase()
-})
+versionSelect.addEventListener("change", () => {
+    uploadVersion = parseInt(versionSelect.value);
+    saveCurrentVersion();
+    currentData = [];
+    drawTable([]);
+    updateDashboard();
+    loadLocal();
+    loadFirebase();
+});
 
-versionSelect.addEventListener("change",()=>{
-uploadVersion=parseInt(versionSelect.value)
-saveCurrentVersion()
-currentData=[]
-drawTable([])
-updateDashboard()
-loadLocal()
-loadFirebase()
-})
+/* EVENT LISTENER: REMARKS */
+document.getElementById('table').addEventListener('change', function(e) {
+    if(e.target && e.target.classList.contains('remark-input')) {
+        let caseNo = e.target.getAttribute('data-caseno');
+        updateRemark(caseNo, e.target.value);
+    }
+});
 
-/* EXCEL */
-
+/* EXCEL UPLOAD */
 function uploadExcel(){
+    let file = document.getElementById('excelFile').files[0];
+    if(!file){ alert("Please select an Excel file"); return; }
 
-let file=excelFile.files[0]
-if(!file){alert("Select Excel");return}
+    let versions;
+    try { versions = JSON.parse(localStorage.getItem(versionKey()) || "[]"); } 
+    catch { versions = []; }
 
-let versions
-try{
-versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
-}catch{
-versions=[]
+    uploadVersion = versions.length + 1;
+    let reader = new FileReader();
+
+    reader.onload = e => {
+        let wb = XLSX.read(e.target.result, {type: "binary"});
+        let rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, defval: ""});
+        
+        rows.shift(); // Remove header row
+        
+        currentData = rows.map(r => ({
+            srno: r[0] || "",
+            caseno: String(r[1] || "").trim(),
+            partyname: r[2] || "",
+            section: r[3] || "",
+            ps: r[4] || "",
+            sent: "",
+            received: "",
+            receiveddate: "",
+            nextdate: "",
+            remark: ""
+        }));
+
+        let opt = document.createElement("option");
+        opt.value = uploadVersion;
+        opt.text = "Upload " + uploadVersion;
+        versionSelect.appendChild(opt);
+        versionSelect.value = uploadVersion;
+
+        versions.push(uploadVersion);
+        saveVersions(versions);
+        saveCurrentVersion();
+
+        drawTable(currentData);
+        updateDashboard();
+        saveLocal();
+        syncFirebase();
+
+        speak("Excel uploaded successfully");
+        document.getElementById('excelFile').value = "";
+    };
+    reader.readAsBinaryString(file);
 }
 
-uploadVersion=versions.length+1
-
-let reader=new FileReader()
-
-reader.onload=e=>{
-
-let wb=XLSX.read(e.target.result,{type:"binary"})
-
-let rows=XLSX.utils.sheet_to_json(
-wb.Sheets[wb.SheetNames[0]],{header:1,defval:""}
-)
-
-rows.shift()
-
-currentData=rows.map(r=>({
-
-srno:r[0]||"",
-caseno:String(r[1]||"").trim(),
-partyname:r[2]||"",
-section:r[3]||"",
-ps:r[4]||"",
-sent:"",
-received:"",
-receiveddate:"",
-nextdate:"",
-remark:""
-
-}))
-
-let opt=document.createElement("option")
-
-opt.value=uploadVersion
-opt.text="Upload "+uploadVersion
-
-versionSelect.appendChild(opt)
-versionSelect.value=uploadVersion
-
-versions.push(uploadVersion)
-
-saveVersions(versions)
-saveCurrentVersion()
-
-drawTable(currentData)
-updateDashboard()
-
-saveLocal()
-syncFirebase()
-
-speak("Excel uploaded")
-
-excelFile.value=""
-
-}
-
-reader.readAsBinaryString(file)
-
-}
-
-/* SCANNER */
-
-function scanSent(){scanMode="SENT";startScanner()}
-function scanReceived(){scanMode="RECEIVED";startScanner()}
+/* SCANNER LOGIC */
+function scanSent(){ scanMode = "SENT"; document.getElementById('scannerTitle').innerText = "Scan to Send"; startScanner(); }
+function scanReceived(){ scanMode = "RECEIVED"; document.getElementById('scannerTitle').innerText = "Scan to Receive"; startScanner(); }
 
 async function startScanner(){
-
-scannerWrap.style.display="block"
-
-scanner=new ZXing.BrowserQRCodeReader()
-
-const devices=await scanner.listVideoInputDevices()
-
-let cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[devices.length-1]
-
-scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-
-if(result){handleScan(result.text.trim())}
-
-})
-
+    document.getElementById('scannerWrap').style.display = "block";
+    scanner = new ZXing.BrowserQRCodeReader();
+    
+    try {
+        const devices = await scanner.listVideoInputDevices();
+        let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length - 1];
+        
+        scanner.decodeFromVideoDevice(cam.deviceId, "video", (result) => {
+            if(result){ handleScan(result.text.trim()); }
+        });
+    } catch (err) {
+        alert("Camera error: " + err.message);
+        stopScanner();
+    }
 }
 
 function stopScanner(){
-
-if(scanner){scanner.reset();scanner=null}
-
-scannerWrap.style.display="none"
-
+    if(scanner){ scanner.reset(); scanner = null; }
+    document.getElementById('scannerWrap').style.display = "none";
 }
 
-/* SCAN */
-
+/* HANDLE SCAN RESULT */
 function handleScan(code){
+    let now = Date.now();
+    if(code === lastScanCode && now - lastScanTime < 1500) return; // Prevent double scan debounce
 
-let now=Date.now()
+    lastScanCode = code;
+    lastScanTime = now;
 
-if(code===lastScanCode && now-lastScanTime<1000)return
+    let idx = currentData.findIndex(r => r.caseno === code);
 
-lastScanCode=code
-lastScanTime=now
+    if(idx === -1){
+        alert("File Not Found");
+        speak("File not found");
+        return;
+    }
 
-let idx=currentData.findIndex(r=>r.caseno===code)
+    if(scanMode === "SENT"){
+        if(currentData[idx].sent === "Sent"){
+            alert("Already Sent");
+            speak("Already sent");
+            return;
+        }
+        currentData[idx].sent = "Sent";
+        alert("Sent");
+        speak("File sent");
+        finalizeScanState(idx, code);
+    }
 
-if(idx===-1){
-
-alert("File Not Found")
-speak("File not found")
-return
-
+    if(scanMode === "RECEIVED"){
+        if(currentData[idx].sent !== "Sent"){
+            alert("File Not Sent Yet");
+            speak("File not sent yet");
+            return;
+        }
+        if(currentData[idx].received === "Received"){
+            alert("Already Received");
+            speak("Already received");
+            return;
+        }
+        currentData[idx].received = "Received";
+        currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
+        lastReceivedIndex = idx;
+        
+        alert("Received");
+        speak("File received");
+        
+        finalizeScanState(idx, code);
+        document.getElementById('nextDatePopup').style.display = "block";
+    }
 }
 
-if(scanMode==="SENT"){
-
-if(currentData[idx].sent==="Sent"){
-
-alert("Already Sent")
-speak("Already sent")
-return
-
+function finalizeScanState(idx, code) {
+    drawTable(currentData);
+    scrollToFile(code);
+    updateDashboard();
+    saveLocal();
+    syncFirebase();
 }
 
-currentData[idx].sent="Sent"
-
-alert("Sent")
-
-speak("File sent")
-
-}
-
-if(scanMode==="RECEIVED"){
-
-if(currentData[idx].sent!=="Sent"){
-
-alert("File Not Sent Yet")
-speak("File not sent yet")
-return
-
-}
-
-if(currentData[idx].received==="Received"){
-
-alert("Already Received")
-speak("Already received")
-return
-
-}
-
-currentData[idx].received="Received"
-
-currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-
-lastReceivedIndex=idx
-
-alert("Received")
-
-speak("File received")
-
-nextDatePopup.style.display="block"
-
-}
-
-drawTable(currentData)
-
-scrollToFile(code)
-
-updateDashboard()
-
-saveLocal()
-
-syncFirebase()
-
-}
-
-/* SCROLL */
-
+/* SCROLL & HIGHLIGHT */
 function scrollToFile(caseno){
-
-let row=document.getElementById("row_"+caseno)
-
-if(!row)return
-
-row.scrollIntoView({behavior:"smooth",block:"center"})
-
-row.classList.add("highlight")
-
-setTimeout(()=>{row.classList.remove("highlight")},3000)
-
+    // Caseno could have spaces/chars so we querySelector carefully
+    let safeId = "row_" + caseno.replace(/[^a-zA-Z0-9_-]/g, '_'); 
+    let row = document.getElementById(safeId);
+    if(!row) return;
+    
+    row.scrollIntoView({behavior: "smooth", block: "center"});
+    row.classList.add("highlight");
+    setTimeout(() => { row.classList.remove("highlight"); }, 3000);
 }
 
-/* NEXT DATE */
-
+/* NEXT DATE POPUP */
 function saveNextDate(){
-
-if(lastReceivedIndex===null)return
-
-let selectedDate=nextDateInput.value
-
-currentData[lastReceivedIndex].nextdate=selectedDate
-
-nextDatePopup.style.display="none"
-
-lastReceivedIndex=null
-
-drawTable(currentData)
-
-speakNextDate(selectedDate)
-
-saveLocal()
-
-syncFirebase()
-
+    if(lastReceivedIndex === null) return;
+    let selectedDate = document.getElementById('nextDateInput').value;
+    if(!selectedDate) { alert("Please select a date."); return; }
+    
+    currentData[lastReceivedIndex].nextdate = selectedDate;
+    document.getElementById('nextDatePopup').style.display = "none";
+    lastReceivedIndex = null;
+    
+    drawTable(currentData);
+    speakNextDate(selectedDate);
+    saveLocal();
+    syncFirebase();
 }
 
 function closePopup(){
-
-nextDatePopup.style.display="none"
-
-lastReceivedIndex=null
-
+    document.getElementById('nextDatePopup').style.display = "none";
+    lastReceivedIndex = null;
 }
 
-/* REMARK */
-function updateRemark(caseNo,val){
-
-let idx=currentData.findIndex(r=>r.caseno===caseNo)
-
-if(idx!==-1){
-
-currentData[idx].remark=val
-
-saveLocal()
-
-syncFirebase()
-
+/* REMARK UPDATE */
+function updateRemark(caseNo, val){
+    let idx = currentData.findIndex(r => r.caseno === caseNo);
+    if(idx !== -1){
+        currentData[idx].remark = val;
+        saveLocal();
+        syncFirebase();
+    }
 }
 
-}
-
-
-/* TABLE */
-
+/* TABLE RENDERING */
 function drawTable(data){
+    const tableObj = document.getElementById('table');
+    if(!data || !data.length){ tableObj.innerHTML = ""; return; }
 
-if(!data.length){table.innerHTML="";return}
+    let headers = ["srno", "caseno", "partyname", "section", "ps", "sent", "received", "receiveddate", "nextdate", "remark"];
+    
+    let html = "<thead><tr>" + headers.map(x => "<th>" + escapeHTML(x) + "</th>").join("") + "</tr></thead><tbody>";
 
-let headers=[
-
-"srno","caseno","partyname","section","ps",
-
-"sent","received","receiveddate","nextdate","remark"
-
-]
-
-let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
-
-data.forEach((r,i)=>{
-
-let row=`<tr id="row_${r.caseno}">`
-
-headers.forEach(k=>{
-
-if(k==="remark"){
-
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark('${r.caseno}',this.value)"></td>`
-
-}else{
-
-row+=`<td>${r[k]||""}</td>`
-
-}
-
-})
-
-row+="</tr>"
-
-html+=row
-
-})
-
-table.innerHTML=html
-
+    data.forEach(r => {
+        let safeId = "row_" + r.caseno.replace(/[^a-zA-Z0-9_-]/g, '_');
+        let row = `<tr id="${safeId}">`;
+        
+        headers.forEach(k => {
+            let val = r[k] || "";
+            if(k === "remark"){
+                row += `<td><input type="text" class="remark-input" data-caseno="${escapeHTML(r.caseno)}" value="${escapeHTML(val)}" placeholder="Add remark..."></td>`;
+            } else {
+                row += `<td>${escapeHTML(val)}</td>`;
+            }
+        });
+        row += "</tr>";
+        html += row;
+    });
+    
+    html += "</tbody>";
+    tableObj.innerHTML = html;
 }
 
 /* SEARCH */
-
-searchBox.addEventListener("input",()=>{
-
-let q=searchBox.value.toLowerCase()
-
-let filtered=q
-
-?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
-
-:currentData
-
-drawTable(filtered)
-
-})
-
-/* DOWNLOAD */
-
-function downloadExcel(){
-
-let ws=XLSX.utils.json_to_sheet(currentData)
-
-let wb=XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-
-XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
-
-}
-
-</script>
-
-</body>
-</html>
+document.getElementById('searchBox').addEventListener("input", (e) => {
+    let q = e.target.val
