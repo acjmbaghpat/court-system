@@ -290,11 +290,22 @@ function scanSent(){scanMode="SENT";startScanner()}
 function scanReceived(){scanMode="RECEIVED";startScanner()}
 
 async function startScanner(){
+
 scannerWrap.style.display="block"
+
 html5Qr=new Html5Qrcode("video")
+
 let devices=await Html5Qrcode.getCameras()
-let cam=devices[0]
-html5Qr.start(cam.id,{fps:10,qrbox:250},(text)=>handleScan(text.trim()))
+
+// 🔥 BACK CAMERA SELECT
+let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length-1]
+
+html5Qr.start(
+  cam.id,
+  { fps:10, qrbox:250 },
+  (text)=>handleScan(text.trim())
+)
+
 }
 
 function stopScanner(){
