@@ -1,131 +1,65 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html><html>
 <head>
 <meta charset="UTF-8">
 <title>Court File Manager</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://unpkg.com/@zxing/library@latest"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<style>
-
+<meta name="viewport" content="width=device-width, initial-scale=1"><!-- FIX 1: ZXing removed --><script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script><style>
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
-
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
-
-input,button,select{
-width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc
-}
-
+input,button,select{width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc}
 button{background:#1976d2;color:#fff;border:none}
-
 .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
 .dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
-
 .card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
-
 .table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
-
 table{width:100%;border-collapse:collapse;min-width:900px}
-
 th,td{border:1px solid #ddd;padding:6px;font-size:13px}
-
 #scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
-
-#video{width:100%;height:75vh;object-fit:cover}
-
-#scanBox{position:absolute;top:25%;left:15%;width:70%;height:50%;border:4px solid #00ff00;border-radius:10px}
-
+#video{width:100%;height:75vh}
 #nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
-
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
-
-.highlight{
-background:#fff3cd;
-animation:blink 1s 3;
-}
-
-@keyframes blink{
-0%{background:#fff3cd}
-50%{background:#ffffff}
-100%{background:#fff3cd}
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="section">
+.highlight{background:#fff3cd;animation:blink 1s 3}
+@keyframes blink{0%{background:#fff3cd}50%{background:#ffffff}100%{background:#fff3cd}}
+</style></head><body><div class="section">
 <h3>📅 Working Date</h3>
 <input type="date" id="workDate">
 <select id="versionSelect"></select>
-</div>
-
-<div class="dashboard">
+</div><div class="dashboard">
 <div class="card">📁 Total<br><span id="totalCount">0</span></div>
 <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
 <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
 <div class="card">💾 Storage<br><span id="storageUsage">0%</span></div>
-</div>
-
-<div class="section">
+</div><div class="section">
 <h3>📥 Excel Upload</h3>
 <input type="file" id="excelFile">
 <button onclick="uploadExcel()">Upload Excel</button>
-</div>
-
-<div class="section">
+</div><div class="section">
 <h3>🔍 Search</h3>
 <input type="text" id="searchBox">
-</div>
-
-<div class="section">
+</div><div class="section">
 <h3>📷 Scan</h3>
 <div class="scan-grid">
 <button onclick="scanSent()">📤 Scan SENT</button>
 <button onclick="scanReceived()">📥 Scan RECEIVED</button>
 </div>
-</div>
-
-<div class="section">
+</div><div class="section">
 <button onclick="downloadExcel()">📤 Download Excel</button>
-</div>
-
-<div class="table-wrap">
+</div><div class="table-wrap">
 <table id="table"></table>
-</div>
-
-<div class="section">
+</div><div class="section">
 <button onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
-</div>
-
-<div id="scannerWrap">
-<div style="position:relative">
-<video id="video"></video>
-<div id="scanBox"></div>
-</div>
+</div><div id="scannerWrap">
+<div id="video"></div>
 <button onclick="stopScanner()">Close Scanner</button>
-</div>
-
-<div id="nextDatePopup">
+</div><div id="nextDatePopup">
 <div id="popupBox">
 <h3>📅 Next Date</h3>
 <input type="date" id="nextDateInput">
 <button onclick="saveNextDate()">Save</button>
 <button onclick="closePopup()">Cancel</button>
 </div>
-</div>
-
-<script>
+</div><script>
 
 /* SPEAKER */
-
 function speak(msg){
 let speech=new SpeechSynthesisUtterance(msg)
 speech.lang="en-IN"
@@ -142,7 +76,6 @@ speak("Next date "+day+" "+month)
 }
 
 /* STORAGE */
-
 function updateStorageUsage(){
 let total=5*1024*1024
 let used=new Blob(Object.values(localStorage)).size
@@ -150,8 +83,7 @@ let percent=((used/total)*100).toFixed(1)
 storageUsage.innerText=percent+"%"
 }
 
-/* DELETE OLD */
-
+/* DELETE OLD (unchanged as requested) */
 function deleteOldData(){
 let today=new Date()
 let deleted=0
@@ -172,7 +104,6 @@ updateStorageUsage()
 }
 
 /* FIREBASE */
-
 const firebaseConfig={
 apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
 authDomain:"court-file-system.firebaseapp.com",
@@ -185,7 +116,7 @@ const dbCloud=firebase.firestore()
 let currentData=[]
 let uploadVersion=1
 let scanMode=""
-let scanner=null
+let html5Qr=null
 let lastReceivedIndex=null
 let unsubscribe=null
 
@@ -196,8 +127,15 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* LOAD */
+/* FILTER FIX */
+function getFilteredData(){
+let q=searchBox.value.toLowerCase()
+return q
+? currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
+: currentData
+}
 
+/* LOAD */
 window.onload=()=>{
 let today=new Date().toISOString().split("T")[0]
 workDate.value=today
@@ -209,7 +147,6 @@ updateStorageUsage()
 }
 
 /* DASHBOARD */
-
 function updateDashboard(){
 totalCount.innerText=currentData.length
 sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
@@ -217,7 +154,6 @@ receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
 }
 
 /* VERSION */
-
 function saveVersions(arr){
 localStorage.setItem(versionKey(),JSON.stringify(arr))
 }
@@ -247,7 +183,6 @@ versionSelect.value=uploadVersion
 }
 
 /* LOCAL */
-
 function saveLocal(){
 localStorage.setItem(dataKey(),JSON.stringify(currentData))
 updateStorageUsage()
@@ -257,13 +192,12 @@ function loadLocal(){
 let saved=localStorage.getItem(dataKey())
 if(saved){
 currentData=JSON.parse(saved)
-drawTable(currentData)
+drawTable(getFilteredData())
 updateDashboard()
 }
 }
 
-/* FIREBASE */
-
+/* FIREBASE FIXED */
 function syncFirebase(){
 let id=workDate.value+"_"+uploadVersion
 dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true})
@@ -275,18 +209,15 @@ if(unsubscribe)unsubscribe()
 unsubscribe=dbCloud.collection("courtfiles").doc(id)
 .onSnapshot(doc=>{
 if(doc.exists){
-let cloudData=doc.data().data||[]
-if(cloudData.length>currentData.length){
-currentData=cloudData
-}
-drawTable(currentData)
+currentData = doc.data().data || []
+drawTable(getFilteredData())
 updateDashboard()
+saveLocal()
 }
 })
 }
 
 /* DATE CHANGE */
-
 workDate.addEventListener("change",()=>{
 loadVersions()
 loadCurrentVersion()
@@ -308,35 +239,19 @@ loadFirebase()
 })
 
 /* EXCEL */
-
 function uploadExcel(){
-
 let file=excelFile.files[0]
 if(!file){alert("Select Excel");return}
-
-let versions
-try{
-versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
-}catch{
-versions=[]
-}
-
+let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
 uploadVersion=versions.length+1
 
 let reader=new FileReader()
-
 reader.onload=e=>{
-
 let wb=XLSX.read(e.target.result,{type:"binary"})
-
-let rows=XLSX.utils.sheet_to_json(
-wb.Sheets[wb.SheetNames[0]],{header:1,defval:""}
-)
-
+let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""})
 rows.shift()
 
 currentData=rows.map(r=>({
-
 srno:r[0]||"",
 caseno:String(r[1]||"").trim(),
 partyname:r[2]||"",
@@ -347,293 +262,159 @@ received:"",
 receiveddate:"",
 nextdate:"",
 remark:""
-
 }))
 
 let opt=document.createElement("option")
-
 opt.value=uploadVersion
 opt.text="Upload "+uploadVersion
-
 versionSelect.appendChild(opt)
 versionSelect.value=uploadVersion
 
 versions.push(uploadVersion)
-
 saveVersions(versions)
 saveCurrentVersion()
 
-drawTable(currentData)
+drawTable(getFilteredData())
 updateDashboard()
-
 saveLocal()
 syncFirebase()
 
 speak("Excel uploaded")
-
 excelFile.value=""
-
 }
-
 reader.readAsBinaryString(file)
-
 }
 
-/* SCANNER */
-
+/* SCANNER FIXED */
 function scanSent(){scanMode="SENT";startScanner()}
 function scanReceived(){scanMode="RECEIVED";startScanner()}
 
 async function startScanner(){
-
 scannerWrap.style.display="block"
-
-scanner=new ZXing.BrowserQRCodeReader()
-
-const devices=await scanner.listVideoInputDevices()
-
-let cam=devices.find(d=>d.label.toLowerCase().includes("back"))||devices[devices.length-1]
-
-scanner.decodeFromVideoDevice(cam.deviceId,"video",(result)=>{
-
-if(result){handleScan(result.text.trim())}
-
-})
-
+html5Qr=new Html5Qrcode("video")
+let devices=await Html5Qrcode.getCameras()
+let cam=devices[0]
+html5Qr.start(cam.id,{fps:10,qrbox:250},(text)=>handleScan(text.trim()))
 }
 
 function stopScanner(){
-
-if(scanner){scanner.reset();scanner=null}
-
+if(html5Qr){
+html5Qr.stop().then(()=>html5Qr.clear())
+html5Qr=null
+}
 scannerWrap.style.display="none"
-
 }
 
 /* SCAN */
-
 function handleScan(code){
 
 let now=Date.now()
-
 if(code===lastScanCode && now-lastScanTime<1000)return
-
 lastScanCode=code
 lastScanTime=now
 
 let idx=currentData.findIndex(r=>r.caseno===code)
-
-if(idx===-1){
-
-alert("File Not Found")
-speak("File not found")
-return
-
-}
+if(idx===-1){alert("File Not Found");speak("File not found");return}
 
 if(scanMode==="SENT"){
-
-if(currentData[idx].sent==="Sent"){
-
-alert("Already Sent")
-speak("Already sent")
-return
-
-}
-
+if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
 currentData[idx].sent="Sent"
-
 alert("Sent")
-
 speak("File sent")
-
 }
 
 if(scanMode==="RECEIVED"){
-
-if(currentData[idx].sent!=="Sent"){
-
-alert("File Not Sent Yet")
-speak("File not sent yet")
-return
-
-}
-
-if(currentData[idx].received==="Received"){
-
-alert("Already Received")
-speak("Already received")
-return
-
-}
-
+if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
+if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
 currentData[idx].received="Received"
-
 currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-
 lastReceivedIndex=idx
-
 alert("Received")
-
 speak("File received")
-
 nextDatePopup.style.display="block"
-
 }
 
-drawTable(currentData)
-
+drawTable(getFilteredData())
 scrollToFile(code)
-
 updateDashboard()
-
 saveLocal()
-
 syncFirebase()
-
 }
 
 /* SCROLL */
-
 function scrollToFile(caseno){
-
 let row=document.getElementById("row_"+caseno)
-
 if(!row)return
-
 row.scrollIntoView({behavior:"smooth",block:"center"})
-
 row.classList.add("highlight")
-
 setTimeout(()=>{row.classList.remove("highlight")},3000)
-
 }
 
-/* NEXT DATE */
-
+/* NEXT DATE FIX */
 function saveNextDate(){
-
 if(lastReceivedIndex===null)return
-
 let selectedDate=nextDateInput.value
-
+if(!selectedDate){alert("Please select a date");return}
 currentData[lastReceivedIndex].nextdate=selectedDate
-
 nextDatePopup.style.display="none"
-
 lastReceivedIndex=null
-
-drawTable(currentData)
-
+drawTable(getFilteredData())
 speakNextDate(selectedDate)
-
 saveLocal()
-
 syncFirebase()
-
 }
 
 function closePopup(){
-
 nextDatePopup.style.display="none"
-
 lastReceivedIndex=null
-
 }
 
-/* REMARK */
+/* REMARK FIXED */
+let remarkTimeout
 function updateRemark(caseNo,val){
-
+clearTimeout(remarkTimeout)
+remarkTimeout=setTimeout(()=>{
 let idx=currentData.findIndex(r=>r.caseno===caseNo)
-
 if(idx!==-1){
-
 currentData[idx].remark=val
-
 saveLocal()
-
 syncFirebase()
-
 }
-
+},400)
 }
-
 
 /* TABLE */
-
 function drawTable(data){
-
 if(!data.length){table.innerHTML="";return}
-
-let headers=[
-
-"srno","caseno","partyname","section","ps",
-
-"sent","received","receiveddate","nextdate","remark"
-
-]
-
+let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
 let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
-
-data.forEach((r,i)=>{
-
+data.forEach(r=>{
 let row=`<tr id="row_${r.caseno}">`
-
 headers.forEach(k=>{
-
 if(k==="remark"){
-
-row+=`<td><input value="${r[k]||""}" onchange="updateRemark('${r.caseno}',this.value)"></td>`
-
+row+=`<td><input value="${r[k]||""}" oninput="updateRemark('${r.caseno}',this.value)"></td>`
 }else{
-
 row+=`<td>${r[k]||""}</td>`
-
 }
-
 })
-
 row+="</tr>"
-
 html+=row
-
 })
-
 table.innerHTML=html
-
 }
 
-/* SEARCH */
-
+/* SEARCH FIX */
 searchBox.addEventListener("input",()=>{
-
-let q=searchBox.value.toLowerCase()
-
-let filtered=q
-
-?currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
-
-:currentData
-
-drawTable(filtered)
-
+drawTable(getFilteredData())
 })
 
 /* DOWNLOAD */
-
 function downloadExcel(){
-
 let ws=XLSX.utils.json_to_sheet(currentData)
-
 let wb=XLSX.utils.book_new()
-
 XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-
 XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
-
 }
 
-</script>
-
-</body>
+</script></body>
 </html>
