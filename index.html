@@ -71,20 +71,21 @@ let db;
 
 function openDatabase() {
     return new Promise((resolve, reject) => {
+        if (db) return resolve(db);
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event) => {
-            db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_RECORDS)) {
-                const recordStore = db.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
+            const dbInstance = event.target.result;
+            if (!dbInstance.objectStoreNames.contains(STORE_RECORDS)) {
+                const recordStore = dbInstance.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
                 recordStore.createIndex('workDate', 'workDate', { unique: false });
                 recordStore.createIndex('caseno', 'caseno', { unique: false });
             }
-            if (!db.objectStoreNames.contains(STORE_VERSIONS)) {
-                db.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
+            if (!dbInstance.objectStoreNames.contains(STORE_VERSIONS)) {
+                dbInstance.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
             }
-            if (!db.objectStoreNames.contains(STORE_METADATA)) {
-                db.createObjectStore(STORE_METADATA, { keyPath: 'key' });
+            if (!dbInstance.objectStoreNames.contains(STORE_METADATA)) {
+                dbInstance.createObjectStore(STORE_METADATA, { keyPath: 'key' });
             }
         };
 
@@ -108,66 +109,26 @@ async function getObjectStore(storeName, mode) {
     return transaction.objectStore(storeName);
 }
 
-async function idbAddRecord(record) {
-    const store = await getObjectStore(STORE_RECORDS, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.add(record);
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
-}
-
-async function idbPutRecord(record) {
-    const store = await getObjectStore(STORE_RECORDS, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.put(record);
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
-}
-
-async function idbGetRecordsByWorkDate(workDate) {
-    const store = await getObjectStore(STORE_RECORDS, 'readonly');
-    const index = store.index('workDate');
-    return new Promise((resolve, reject) => {
-        const request = index.getAll(workDate);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (event) => reject(event.target.error);
-    });
-}
-
 async function idbGetAllRecords() {
-    const store = await getObjectStore(STORE_RECORDS, 'readonly');
+    const store = await getObjectStore(STORE_METADATA, 'readonly');
     return new Promise((resolve, reject) => {
         const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (event) => reject(event.target.error);
-    });
-}
-
-async function idbDeleteRecord(id) {
-    const store = await getObjectStore(STORE_RECORDS, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.delete(id);
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
-}
-
-async function idbClearRecordsByWorkDate(workDate) {
-    const store = await getObjectStore(STORE_RECORDS, 'readwrite');
-    const index = store.index('workDate');
-    return new Promise((resolve, reject) => {
-        const request = index.openCursor(IDBKeyRange.only(workDate));
-        request.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if (cursor) {
-                cursor.delete();
-                cursor.continue();
-            } else {
-                resolve();
-            }
+        request.onsuccess = () => {
+            // Filter only records that look like data keys (workDate_version)
+            const records = request.result
+                .filter(item => item.key.includes('_') && Array.isArray(item.value))
+                .flatMap(item => item.value);
+            resolve(records);
         };
+        request.onerror = (event) => reject(event.target.error);
+    });
+}
+
+async function idbDeleteMetadata(key) {
+    const store = await getObjectStore(STORE_METADATA, 'readwrite');
+    return new Promise((resolve, reject) => {
+        const request = store.delete(key);
+        request.onsuccess = () => resolve();
         request.onerror = (event) => reject(event.target.error);
     });
 }
@@ -211,7 +172,7 @@ async function idbSaveCurrentVersion(workDate, version) {
 
 /* HELPER FUNCTIONS */
 function sanitizeId(id) {
-    return id.replace(/[^a-zA-Z0-9-_]/g, '_');
+    return String(id || "").replace(/[^a-zA-Z0-9-_]/g, '_');
 }
 
 function generateSearchableText(record) {
@@ -234,35 +195,37 @@ function speakNextDate(dateStr){
     speak("Next date "+day+" "+month)
 }
 
-/* STORAGE - Updated for IndexedDB */
+/* STORAGE */
 async function updateStorageUsage(){
-    // IndexedDB storage estimation is more complex and browser-dependent.
-    // For simplicity, we'll just log a message for now or use a placeholder.
-    // A more accurate estimation would involve querying navigator.storage.estimate()
-    // which is asynchronous and requires user permission in some browsers.
-    console.log("IndexedDB usage is managed by the browser. No direct usage display like localStorage.");
-    storageUsage.innerText="N/A"; // Placeholder
+    storageUsage.innerText="IndexedDB";
 }
 
-/* DELETE OLD - Updated for IndexedDB */
+/* DELETE OLD */
 async function deleteOldData(){
     let today=new Date()
     let deletedCount = 0;
     try {
-        const allRecords = await idbGetAllRecords();
-        for (const record of allRecords) {
-            // Assuming record.workDate is in 'YYYY-MM-DD' format
-            let fileDate = new Date(record.workDate);
-            let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
-            if (diff > 30) {
-                await idbDeleteRecord(record.id);
-                deletedCount++;
+        const store = await getObjectStore(STORE_METADATA, 'readwrite');
+        const request = store.getAllKeys();
+        request.onsuccess = async () => {
+            const keys = request.result;
+            for (const key of keys) {
+                if (key.includes('_') && !key.startsWith('current_version_')) {
+                    let datePart = key.split('_')[0];
+                    let fileDate = new Date(datePart);
+                    if (!isNaN(fileDate)) {
+                        let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
+                        if (diff > 30) {
+                            await idbDeleteMetadata(key);
+                            deletedCount++;
+                        }
+                    }
+                }
             }
-        }
-        alert(deletedCount + " old records deleted from IndexedDB.");
-        // No need to update storage usage for IndexedDB in the same way as localStorage
+            alert(deletedCount + " old version records deleted.");
+        };
     } catch (error) {
-        console.error("Error deleting old data from IndexedDB:", error);
+        console.error("Error deleting old data:", error);
         alert("Failed to delete old data.");
     }
 }
@@ -287,12 +250,9 @@ let unsubscribe=null
 let lastScanCode=""
 let lastScanTime=0
 
-// Key functions now interact with IndexedDB
-async function versionKey(){ return workDate.value; }
 async function dataKey(){ return workDate.value + "_" + uploadVersion; }
-async function currentVersionKey(){ return 'current_version_' + workDate.value; }
 
-/* FILTER FIX - Improved performance */
+/* FILTER */
 function getFilteredData(){
     let q=searchBox.value.toLowerCase()
     return q
@@ -302,14 +262,18 @@ function getFilteredData(){
 
 /* LOAD */
 window.onload=async()=>{
-    await openDatabase(); // Open IndexedDB on load
-    let today=new Date().toISOString().split("T")[0]
-    workDate.value=today
-    await loadVersions()
-    await loadCurrentVersion()
-    await loadLocal()
-    loadFirebase()
-    updateStorageUsage()
+    try {
+        await openDatabase();
+        let today=new Date().toISOString().split("T")[0]
+        workDate.value=today
+        await loadVersions()
+        await loadCurrentVersion()
+        await loadLocal()
+        loadFirebase()
+        updateStorageUsage()
+    } catch (e) {
+        console.error("Initialization error:", e);
+    }
 }
 
 /* DASHBOARD */
@@ -319,7 +283,7 @@ function updateDashboard(){
     receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
 }
 
-/* VERSION - Updated for IndexedDB */
+/* VERSION */
 async function saveVersions(arr){
     await idbSaveVersions(workDate.value, arr);
 }
@@ -328,8 +292,10 @@ async function loadVersions(){
     versionSelect.innerHTML=""
     const versions = await idbGetVersions(workDate.value);
     if(versions.length === 0) {
-        // If no versions, add version 1 as default
-        versionSelect.innerHTML = '<option value="1">Upload 1</option>';
+        let opt=document.createElement("option")
+        opt.value="1"
+        opt.text="Upload 1"
+        versionSelect.appendChild(opt)
         return;
     }
     versions.forEach(v=>{
@@ -350,30 +316,18 @@ async function loadCurrentVersion(){
     versionSelect.value = uploadVersion;
 }
 
-/* LOCAL - Updated for IndexedDB */
+/* LOCAL */
 async function saveLocal(){
     try {
-        // Clear existing records for the current workDate and version
-        // Then add all currentData records
-        await idbClearRecordsByWorkDate(workDate.value); // This might be too aggressive if versions are meant to coexist
-        // For versioning, we need to store data per version, not just per date.
-        // Let's adjust: each record will have a 'version' field.
-        // For now, I'll just save the currentData as a whole under a specific key in IndexedDB.
-        // A better approach would be to add a 'version' field to each record and query by it.
-        // For simplicity and to maintain currentData structure, I'll clear and re-add for the current date/version.
-
-        // Alternative: Store currentData as a single blob per dataKey in a separate object store if currentData is always the full dataset for a version
-        const store = await getObjectStore(STORE_METADATA, 'readwrite'); // Using metadata store for this
+        const key = await dataKey();
+        const store = await getObjectStore(STORE_METADATA, 'readwrite');
         await new Promise((resolve, reject) => {
-            const request = store.put({ key: await dataKey(), value: currentData });
+            const request = store.put({ key: key, value: currentData });
             request.onsuccess = () => resolve();
             request.onerror = (event) => reject(event.target.error);
         });
-
-        updateStorageUsage();
     } catch (e) {
         console.error("Error saving to IndexedDB:", e);
-        alert("Failed to save data locally. IndexedDB error.");
     }
 }
 
@@ -387,33 +341,30 @@ async function loadLocal(){
                 if(request.result && request.result.value){
                     currentData = request.result.value;
                     currentData.forEach(r => r.searchableText = generateSearchableText(r));
-                    drawTable(getFilteredData());
-                    updateDashboard();
                 } else {
                     currentData = [];
-                    drawTable([]);
-                    updateDashboard();
                 }
+                drawTable(getFilteredData());
+                updateDashboard();
                 resolve();
             };
             request.onerror = (event) => reject(event.target.error);
         });
     } catch (e) {
         console.error("Error loading from IndexedDB:", e);
-        alert("Failed to load data locally. Data might be corrupted or not found.");
         currentData = [];
+        drawTable([]);
+        updateDashboard();
     }
 }
 
-/* FIREBASE FIXED - Added error handling */
+/* FIREBASE */
 async function syncFirebase(){
     let id=workDate.value+"_"+uploadVersion
     try {
         await dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true});
-        console.log("Firebase sync successful for ID:", id);
     } catch (error) {
         console.error("Error syncing to Firebase:", error);
-        alert("Failed to sync data to cloud. Please check your connection.");
     }
 }
 
@@ -429,19 +380,12 @@ function loadFirebase(){
                 drawTable(getFilteredData())
                 updateDashboard()
                 saveLocal()
-            } else {
-                console.log("No Firebase data for ID:", id, ". Loading local data if available.");
-                loadLocal(); 
             }
         }, error => {
-            console.error("Error listening to Firebase snapshot:", error);
-            alert("Failed to load cloud data. Displaying local data if available.");
-            loadLocal(); // Fallback to local data on error
+            console.error("Firebase error:", error);
         })
     } catch (error) {
-        console.error("Error setting up Firebase snapshot listener:", error);
-        alert("Failed to connect to cloud. Displaying local data if available.");
-        loadLocal(); // Fallback to local data on error
+        console.error("Firebase setup error:", error);
     }
 }
 
@@ -449,9 +393,6 @@ function loadFirebase(){
 workDate.addEventListener("change",async()=>{
     await loadVersions()
     await loadCurrentVersion()
-    currentData=[]
-    drawTable([])
-    updateDashboard()
     await loadLocal()
     loadFirebase()
 })
@@ -459,9 +400,6 @@ workDate.addEventListener("change",async()=>{
 versionSelect.addEventListener("change",async()=>{
     uploadVersion=parseInt(versionSelect.value)
     await saveCurrentVersion()
-    currentData=[]
-    drawTable([])
-    updateDashboard()
     await loadLocal()
     loadFirebase()
 })
@@ -470,55 +408,69 @@ versionSelect.addEventListener("change",async()=>{
 async function uploadExcel(){
     let file=excelFile.files[0]
     if(!file){alert("Select Excel");return}
-    let versions = await idbGetVersions(workDate.value);
-    uploadVersion=versions.length+1
     
-    let reader=new FileReader()
-    reader.onload=async e=>{
-        let wb=XLSX.read(e.target.result,{type:"binary"})
-        let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""})
-        rows.shift()
+    try {
+        let versions = await idbGetVersions(workDate.value);
+        uploadVersion=versions.length+1
         
-        currentData=rows.map(r=>{
-            const record = {
-                id: workDate.value + '_' + uploadVersion + '_' + String(r[1]||"").trim(), // Unique ID for IndexedDB
-                srno:r[0]||"",
-                caseno:String(r[1]||"").trim(),
-                partyname:r[2]||"",
-                section:r[3]||"",
-                ps:r[4]||"",
-                sent:"",
-                received:"",
-                receiveddate:"",
-                nextdate:"",
-                remark:""
-            };
-            record.searchableText = generateSearchableText(record);
-            return record;
-        })
-        
-        let opt=document.createElement("option")
-        opt.value=uploadVersion
-        opt.text="Upload "+uploadVersion
-        versionSelect.appendChild(opt)
-        versionSelect.value=uploadVersion
-        
-        versions.push(uploadVersion)
-        await saveVersions(workDate.value, versions);
-        await saveCurrentVersion()
-        
-        drawTable(getFilteredData())
-        updateDashboard()
-        await saveLocal()
-        syncFirebase()
-        
-        speak("Excel uploaded")
-        excelFile.value=""
+        let reader=new FileReader()
+        reader.onload=async e=>{
+            try {
+                let data = e.target.result;
+                let wb=XLSX.read(data,{type:"binary"})
+                let sheetName = wb.SheetNames[0];
+                let rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:""})
+                
+                if(rows.length > 0) rows.shift(); // Remove header
+                
+                currentData=rows.map(r=>{
+                    const record = {
+                        srno:r[0]||"",
+                        caseno:String(r[1]||"").trim(),
+                        partyname:r[2]||"",
+                        section:r[3]||"",
+                        ps:r[4]||"",
+                        sent:"",
+                        received:"",
+                        receiveddate:"",
+                        nextdate:"",
+                        remark:""
+                    };
+                    record.searchableText = generateSearchableText(record);
+                    return record;
+                }).filter(r => r.caseno !== ""); // Filter out empty case numbers
+                
+                let opt=document.createElement("option")
+                opt.value=uploadVersion
+                opt.text="Upload "+uploadVersion
+                versionSelect.appendChild(opt)
+                versionSelect.value=uploadVersion
+                
+                versions.push(uploadVersion)
+                await saveVersions(workDate.value, versions);
+                await saveCurrentVersion()
+                
+                drawTable(getFilteredData())
+                updateDashboard()
+                await saveLocal()
+                syncFirebase()
+                
+                speak("Excel uploaded")
+                excelFile.value=""
+            } catch (err) {
+                console.error("Excel processing error:", err);
+                alert("Error processing Excel file.");
+            }
+        }
+        reader.onerror = () => alert("Error reading file.");
+        reader.readAsBinaryString(file)
+    } catch (err) {
+        console.error("Upload error:", err);
+        alert("Upload failed.");
     }
-    reader.readAsBinaryString(file)
 }
 
-/* SCANNER FIXED */
+/* SCANNER */
 function scanSent(){scanMode="SENT";startScanner()}
 function scanReceived(){scanMode="RECEIVED";startScanner()}
 
@@ -529,46 +481,32 @@ async function startScanner(){
         let devices=await Html5Qrcode.getCameras()
         if (devices.length === 0) {
             alert("No camera found.");
-            speak("No camera found.");
             stopScanner();
             return;
         }
         let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length-1];
-        if (!cam) {
-            alert("Could not find a suitable camera.");
-            speak("Could not find a suitable camera.");
-            stopScanner();
-            return;
-        }
         html5Qr.start(
             cam.id,
             { fps:10, qrbox:250 },
-            (text)=>handleScan(text.trim()),
-            (errorMessage) => { /* Optional: handle scan errors */ }
+            (text)=>handleScan(text.trim())
         )
     } catch (error) {
-        console.error("Error starting scanner:", error);
-        alert("Failed to start scanner. Please ensure camera permissions are granted.");
-        speak("Failed to start scanner.");
+        console.error("Scanner error:", error);
         stopScanner();
     }
 }
 
 function stopScanner(){
     if(html5Qr){
-        html5Qr.stop().then(()=>html5Qr.clear()).catch(error => console.error("Error stopping scanner:", error));
+        html5Qr.stop().then(()=>html5Qr.clear()).catch(e => console.error(e));
         html5Qr=null
     }
     scannerWrap.style.display="none"
 }
 
-/* SCAN - Improved debouncing and error handling */
 async function handleScan(code){
     let now=Date.now()
-    if(code===lastScanCode && now-lastScanTime<1500) {
-        console.log("Duplicate scan ignored:", code);
-        return;
-    }
+    if(code===lastScanCode && now-lastScanTime<1500) return;
     lastScanCode=code;
     lastScanTime=now;
 
@@ -576,19 +514,17 @@ async function handleScan(code){
     if(idx===-1){alert("File Not Found");speak("File not found");return}
     
     if(scanMode==="SENT"){
-        if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
+        if(currentData[idx].sent==="Sent"){alert("Already Sent");return}
         currentData[idx].sent="Sent"
-        alert("Sent")
         speak("File sent")
     }
     
     if(scanMode==="RECEIVED"){
-        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
-        if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
+        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");return}
+        if(currentData[idx].received==="Received"){alert("Already Received");return}
         currentData[idx].received="Received"
         currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
         lastReceivedIndex=idx
-        alert("Received")
         speak("File received")
         nextDatePopup.style.display="block"
     }
@@ -610,7 +546,7 @@ function scrollToFile(caseno){
     setTimeout(()=>{row.classList.remove("highlight")},3000)
 }
 
-/* NEXT DATE FIX */
+/* NEXT DATE */
 async function saveNextDate(){
     if(lastReceivedIndex===null)return
     let selectedDate=nextDateInput.value
@@ -628,10 +564,9 @@ async function saveNextDate(){
 function closePopup(){
     nextDatePopup.style.display="none"
     lastReceivedIndex=null
-    nextDateInput.value = '';
 }
 
-/* REMARK FIXED */
+/* REMARK */
 let remarkTimeout
 async function updateRemark(caseNo,val){
     clearTimeout(remarkTimeout)
@@ -648,7 +583,7 @@ async function updateRemark(caseNo,val){
 
 /* TABLE */
 function drawTable(data){
-    if(!data.length){table.innerHTML="";return}
+    if(!data || !data.length){table.innerHTML="";return}
     let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
     let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
     data.forEach(r=>{
@@ -656,7 +591,8 @@ function drawTable(data){
         let row=`<tr id="row_${sanitizedCaseno}">`
         headers.forEach(k=>{
             if(k==="remark"){
-                row+=`<td><input value="${r[k]||""}" oninput="updateRemark(\'${r.caseno.replace(/\\'/g, "\\\\'")}\',this.value)"></td>`
+                let escapedCaseno = String(r.caseno).replace(/'/g, "\\'");
+                row+=`<td><input value="${r[k]||""}" oninput="updateRemark('${escapedCaseno}',this.value)"></td>`
             }else{
                 row+=`<td>${r[k]||""}</td>`
             }
@@ -667,7 +603,7 @@ function drawTable(data){
     table.innerHTML=html
 }
 
-/* SEARCH FIX */
+/* SEARCH */
 searchBox.addEventListener("input",()=>{
     drawTable(getFilteredData())
 })
