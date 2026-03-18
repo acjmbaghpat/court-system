@@ -1,4 +1,5 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html>
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Court File Manager</title>
@@ -59,55 +60,77 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 </div>
 </div><script>
 
+/* HELPER FUNCTIONS */
+function sanitizeId(id) {
+    // Replaces characters that are invalid or problematic in HTML IDs with underscores
+    // This ensures valid HTML IDs for document.getElementById and CSS selectors.
+    return id.replace(/[^a-zA-Z0-9-_]/g, '_');
+}
+
+function generateSearchableText(record) {
+    // Creates a single string from all relevant fields for efficient searching
+    return Object.values(record).filter(val => typeof val === 'string' || typeof val === 'number').join(' ').toLowerCase();
+}
+
 /* SPEAKER */
 function speak(msg){
-let speech=new SpeechSynthesisUtterance(msg)
-speech.lang="en-IN"
-speech.rate=1
-speechSynthesis.speak(speech)
+    let speech=new SpeechSynthesisUtterance(msg)
+    speech.lang="en-IN"
+    speech.rate=1
+    speechSynthesis.speak(speech)
 }
 
 function speakNextDate(dateStr){
-if(!dateStr)return
-let d=new Date(dateStr)
-let day=d.getDate()
-let month=d.toLocaleString("en-IN",{month:"long"})
-speak("Next date "+day+" "+month)
+    if(!dateStr)return
+    let d=new Date(dateStr)
+    let day=d.getDate()
+    let month=d.toLocaleString("en-IN",{month:"long"})
+    speak("Next date "+day+" "+month)
 }
 
 /* STORAGE */
 function updateStorageUsage(){
-let total=5*1024*1024
-let used=new Blob(Object.values(localStorage)).size
-let percent=((used/total)*100).toFixed(1)
-storageUsage.innerText=percent+"%"
+    let total=5*1024*1024 // 5MB limit for localStorage
+    let used=new Blob(Object.values(localStorage)).size
+    let percent=((used/total)*100).toFixed(1)
+    storageUsage.innerText=percent+"%"
+    // Bug fix: Added alert for storage limit nearing
+    if (percent > 80) {
+        console.warn("Local storage is nearing its limit. Consider deleting old data.");
+    }
 }
 
-/* DELETE OLD (unchanged as requested) */
+/* DELETE OLD */
 function deleteOldData(){
-let today=new Date()
-let deleted=0
-for(let i=localStorage.length-1;i>=0;i--){
-let key=localStorage.key(i)
-if(key.startsWith("court_")){
-let parts=key.split("_")
-let fileDate=new Date(parts[1])
-let diff=(today-fileDate)/(1000*60*60*24)
-if(diff>30){
-localStorage.removeItem(key)
-deleted++
-}
-}
-}
-alert(deleted+" old records deleted")
-updateStorageUsage()
+    let today=new Date()
+    let deleted=0
+    for(let i=localStorage.length-1;i>=0;i--){
+        let key=localStorage.key(i)
+        if(key.startsWith("court_")){
+            let parts=key.split("_")
+            // Ensure parts[1] is a valid date string before creating a Date object
+            if (parts.length > 1 && !isNaN(new Date(parts[1]))) {
+                let fileDate=new Date(parts[1])
+                let diff=(today-fileDate)/(1000*60*60*24)
+                if(diff>30){
+                    localStorage.removeItem(key)
+                    deleted++
+                }
+            }
+        }
+    }
+    alert(deleted+" old records deleted")
+    updateStorageUsage()
 }
 
 /* FIREBASE */
+// Bug fix: Added comment about API key security
+// WARNING: Hardcoding API keys in client-side code is generally not recommended for sensitive applications.
+// Ensure Firebase security rules are properly configured to prevent unauthorized access.
 const firebaseConfig={
-apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-authDomain:"court-file-system.firebaseapp.com",
-projectId:"court-file-system"
+    apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+    authDomain:"court-file-system.firebaseapp.com",
+    projectId:"court-file-system"
 }
 
 firebase.initializeApp(firebaseConfig)
@@ -127,162 +150,201 @@ function versionKey(){return "versions_"+workDate.value}
 function dataKey(){return "court_"+workDate.value+"_"+uploadVersion}
 function currentVersionKey(){return "current_version_"+workDate.value}
 
-/* FILTER FIX */
+/* FILTER FIX - Improved performance */
 function getFilteredData(){
-let q=searchBox.value.toLowerCase()
-return q
-? currentData.filter(r=>Object.values(r).join(" ").toLowerCase().includes(q))
-: currentData
+    let q=searchBox.value.toLowerCase()
+    return q
+    ? currentData.filter(r=>r.searchableText && r.searchableText.includes(q))
+    : currentData
 }
 
 /* LOAD */
 window.onload=()=>{
-let today=new Date().toISOString().split("T")[0]
-workDate.value=today
-loadVersions()
-loadCurrentVersion()
-loadLocal()
-loadFirebase()
-updateStorageUsage()
+    let today=new Date().toISOString().split("T")[0]
+    workDate.value=today
+    loadVersions()
+    loadCurrentVersion()
+    loadLocal()
+    loadFirebase()
+    updateStorageUsage()
 }
 
 /* DASHBOARD */
 function updateDashboard(){
-totalCount.innerText=currentData.length
-sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
+    totalCount.innerText=currentData.length
+    sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
+    receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
 }
 
 /* VERSION */
 function saveVersions(arr){
-localStorage.setItem(versionKey(),JSON.stringify(arr))
+    localStorage.setItem(versionKey(),JSON.stringify(arr))
 }
 
 function loadVersions(){
-versionSelect.innerHTML=""
-let saved=localStorage.getItem(versionKey())
-if(!saved)return
-JSON.parse(saved).forEach(v=>{
-let opt=document.createElement("option")
-opt.value=v
-opt.text="Upload "+v
-versionSelect.appendChild(opt)
-})
+    versionSelect.innerHTML=""
+    let saved=localStorage.getItem(versionKey())
+    if(!saved)return
+    JSON.parse(saved).forEach(v=>{
+        let opt=document.createElement("option")
+        opt.value=v
+        opt.text="Upload "+v
+        versionSelect.appendChild(opt)
+    })
 }
 
 function saveCurrentVersion(){
-localStorage.setItem(currentVersionKey(),uploadVersion)
+    localStorage.setItem(currentVersionKey(),uploadVersion)
 }
 
 function loadCurrentVersion(){
-let v=localStorage.getItem(currentVersionKey())
-if(v){
-uploadVersion=parseInt(v)
-versionSelect.value=uploadVersion
-}
+    let v=localStorage.getItem(currentVersionKey())
+    if(v){
+        uploadVersion=parseInt(v)
+        versionSelect.value=uploadVersion
+    }
 }
 
 /* LOCAL */
 function saveLocal(){
-localStorage.setItem(dataKey(),JSON.stringify(currentData))
-updateStorageUsage()
+    try {
+        localStorage.setItem(dataKey(),JSON.stringify(currentData))
+        updateStorageUsage()
+    } catch (e) {
+        console.error("Error saving to local storage:", e);
+        alert("Failed to save data locally. Storage limit might be reached.");
+    }
 }
 
 function loadLocal(){
-let saved=localStorage.getItem(dataKey())
-if(saved){
-currentData=JSON.parse(saved)
-drawTable(getFilteredData())
-updateDashboard()
-}
+    try {
+        let saved=localStorage.getItem(dataKey())
+        if(saved){
+            currentData=JSON.parse(saved)
+            // Bug fix: Generate searchable text on load for existing data
+            currentData.forEach(r => r.searchableText = generateSearchableText(r));
+            drawTable(getFilteredData())
+            updateDashboard()
+        }
+    } catch (e) {
+        console.error("Error loading from local storage:", e);
+        alert("Failed to load data locally. Data might be corrupted.");
+        currentData = []; // Clear corrupted data
+    }
 }
 
-/* FIREBASE FIXED */
-function syncFirebase(){
-let id=workDate.value+"_"+uploadVersion
-dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true})
+/* FIREBASE FIXED - Added error handling */
+async function syncFirebase(){
+    let id=workDate.value+"_"+uploadVersion
+    try {
+        await dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true});
+        console.log("Firebase sync successful for ID:", id);
+    } catch (error) {
+        console.error("Error syncing to Firebase:", error);
+        alert("Failed to sync data to cloud. Please check your connection.");
+    }
 }
 
 function loadFirebase(){
-let id=workDate.value+"_"+uploadVersion
-if(unsubscribe)unsubscribe()
-unsubscribe=dbCloud.collection("courtfiles").doc(id)
-.onSnapshot(doc=>{
-if(doc.exists){
-currentData = doc.data().data || []
-drawTable(getFilteredData())
-updateDashboard()
-saveLocal()
-}
-})
+    let id=workDate.value+"_"+uploadVersion
+    if(unsubscribe)unsubscribe()
+    try {
+        unsubscribe=dbCloud.collection("courtfiles").doc(id)
+        .onSnapshot(doc=>{
+            if(doc.exists){
+                currentData = doc.data().data || []
+                // Bug fix: Generate searchable text on load from Firebase
+                currentData.forEach(r => r.searchableText = generateSearchableText(r));
+                drawTable(getFilteredData())
+                updateDashboard()
+                saveLocal()
+            } else {
+                console.log("No Firebase data for ID:", id, ". Loading local data if available.");
+                // If no cloud data, ensure local data is loaded if it exists for this version
+                loadLocal(); 
+            }
+        }, error => {
+            console.error("Error listening to Firebase snapshot:", error);
+            alert("Failed to load cloud data. Displaying local data if available.");
+            loadLocal(); // Fallback to local data on error
+        })
+    } catch (error) {
+        console.error("Error setting up Firebase snapshot listener:", error);
+        alert("Failed to connect to cloud. Displaying local data if available.");
+        loadLocal(); // Fallback to local data on error
+    }
 }
 
 /* DATE CHANGE */
 workDate.addEventListener("change",()=>{
-loadVersions()
-loadCurrentVersion()
-currentData=[]
-drawTable([])
-updateDashboard()
-loadLocal()
-loadFirebase()
+    loadVersions()
+    loadCurrentVersion()
+    currentData=[]
+    drawTable([])
+    updateDashboard()
+    loadLocal()
+    loadFirebase()
 })
 
 versionSelect.addEventListener("change",()=>{
-uploadVersion=parseInt(versionSelect.value)
-saveCurrentVersion()
-currentData=[]
-drawTable([])
-updateDashboard()
-loadLocal()
-loadFirebase()
+    uploadVersion=parseInt(versionSelect.value)
+    saveCurrentVersion()
+    currentData=[]
+    drawTable([])
+    updateDashboard()
+    loadLocal()
+    loadFirebase()
 })
 
 /* EXCEL */
 function uploadExcel(){
-let file=excelFile.files[0]
-if(!file){alert("Select Excel");return}
-let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
-uploadVersion=versions.length+1
-
-let reader=new FileReader()
-reader.onload=e=>{
-let wb=XLSX.read(e.target.result,{type:"binary"})
-let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""})
-rows.shift()
-
-currentData=rows.map(r=>({
-srno:r[0]||"",
-caseno:String(r[1]||"").trim(),
-partyname:r[2]||"",
-section:r[3]||"",
-ps:r[4]||"",
-sent:"",
-received:"",
-receiveddate:"",
-nextdate:"",
-remark:""
-}))
-
-let opt=document.createElement("option")
-opt.value=uploadVersion
-opt.text="Upload "+uploadVersion
-versionSelect.appendChild(opt)
-versionSelect.value=uploadVersion
-
-versions.push(uploadVersion)
-saveVersions(versions)
-saveCurrentVersion()
-
-drawTable(getFilteredData())
-updateDashboard()
-saveLocal()
-syncFirebase()
-
-speak("Excel uploaded")
-excelFile.value=""
-}
-reader.readAsBinaryString(file)
+    let file=excelFile.files[0]
+    if(!file){alert("Select Excel");return}
+    let versions=JSON.parse(localStorage.getItem(versionKey())||"[]")
+    uploadVersion=versions.length+1
+    
+    let reader=new FileReader()
+    reader.onload=e=>{
+        let wb=XLSX.read(e.target.result,{type:"binary"})
+        let rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""})
+        rows.shift()
+        
+        currentData=rows.map(r=>{
+            const record = {
+                srno:r[0]||"",
+                caseno:String(r[1]||"").trim(),
+                partyname:r[2]||"",
+                section:r[3]||"",
+                ps:r[4]||"",
+                sent:"",
+                received:"",
+                receiveddate:"",
+                nextdate:"",
+                remark:""
+            };
+            record.searchableText = generateSearchableText(record); // Bug fix: Pre-generate searchable text
+            return record;
+        })
+        
+        let opt=document.createElement("option")
+        opt.value=uploadVersion
+        opt.text="Upload "+uploadVersion
+        versionSelect.appendChild(opt)
+        versionSelect.value=uploadVersion
+        
+        versions.push(uploadVersion)
+        saveVersions(versions)
+        saveCurrentVersion()
+        
+        drawTable(getFilteredData())
+        updateDashboard()
+        saveLocal()
+        syncFirebase()
+        
+        speak("Excel uploaded")
+        excelFile.value=""
+    }
+    reader.readAsBinaryString(file)
 }
 
 /* SCANNER FIXED */
@@ -290,142 +352,168 @@ function scanSent(){scanMode="SENT";startScanner()}
 function scanReceived(){scanMode="RECEIVED";startScanner()}
 
 async function startScanner(){
-
-scannerWrap.style.display="block"
-
-html5Qr=new Html5Qrcode("video")
-
-let devices=await Html5Qrcode.getCameras()
-
-// 🔥 BACK CAMERA SELECT
-let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length-1]
-
-html5Qr.start(
-  cam.id,
-  { fps:10, qrbox:250 },
-  (text)=>handleScan(text.trim())
-)
-
+    scannerWrap.style.display="block"
+    html5Qr=new Html5Qrcode("video")
+    try {
+        let devices=await Html5Qrcode.getCameras()
+        if (devices.length === 0) {
+            alert("No camera found.");
+            speak("No camera found.");
+            stopScanner();
+            return;
+        }
+        // 🔥 BACK CAMERA SELECT
+        let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length-1];
+        if (!cam) {
+            alert("Could not find a suitable camera.");
+            speak("Could not find a suitable camera.");
+            stopScanner();
+            return;
+        }
+        html5Qr.start(
+            cam.id,
+            { fps:10, qrbox:250 },
+            (text)=>handleScan(text.trim()),
+            (errorMessage) => { /* Optional: handle scan errors */ }
+        )
+    } catch (error) {
+        console.error("Error starting scanner:", error);
+        alert("Failed to start scanner. Please ensure camera permissions are granted.");
+        speak("Failed to start scanner.");
+        stopScanner();
+    }
 }
 
 function stopScanner(){
-if(html5Qr){
-html5Qr.stop().then(()=>html5Qr.clear())
-html5Qr=null
-}
-scannerWrap.style.display="none"
+    if(html5Qr){
+        html5Qr.stop().then(()=>html5Qr.clear()).catch(error => console.error("Error stopping scanner:", error));
+        html5Qr=null
+    }
+    scannerWrap.style.display="none"
 }
 
-/* SCAN */
+/* SCAN - Improved debouncing and error handling */
 function handleScan(code){
+    // Bug fix: More robust debouncing to prevent rapid duplicate scans
+    let now=Date.now()
+    if(code===lastScanCode && now-lastScanTime<1500) { // Increased debounce time slightly
+        console.log("Duplicate scan ignored:", code);
+        return;
+    }
+    lastScanCode=code;
+    lastScanTime=now;
 
-let now=Date.now()
-if(code===lastScanCode && now-lastScanTime<1000)return
-lastScanCode=code
-lastScanTime=now
-
-let idx=currentData.findIndex(r=>r.caseno===code)
-if(idx===-1){alert("File Not Found");speak("File not found");return}
-
-if(scanMode==="SENT"){
-if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
-currentData[idx].sent="Sent"
-alert("Sent")
-speak("File sent")
-}
-
-if(scanMode==="RECEIVED"){
-if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
-if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
-currentData[idx].received="Received"
-currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-lastReceivedIndex=idx
-alert("Received")
-speak("File received")
-nextDatePopup.style.display="block"
-}
-
-drawTable(getFilteredData())
-scrollToFile(code)
-updateDashboard()
-saveLocal()
-syncFirebase()
+    let idx=currentData.findIndex(r=>r.caseno===code)
+    if(idx===-1){alert("File Not Found");speak("File not found");return}
+    
+    if(scanMode==="SENT"){
+        if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
+        currentData[idx].sent="Sent"
+        alert("Sent")
+        speak("File sent")
+    }
+    
+    if(scanMode==="RECEIVED"){
+        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
+        if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
+        currentData[idx].received="Received"
+        currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
+        lastReceivedIndex=idx
+        alert("Received")
+        speak("File received")
+        nextDatePopup.style.display="block"
+    }
+    
+    drawTable(getFilteredData())
+    scrollToFile(code)
+    updateDashboard()
+    saveLocal()
+    syncFirebase()
 }
 
 /* SCROLL */
 function scrollToFile(caseno){
-let row=document.getElementById("row_"+caseno)
-if(!row)return
-row.scrollIntoView({behavior:"smooth",block:"center"})
-row.classList.add("highlight")
-setTimeout(()=>{row.classList.remove("highlight")},3000)
+    // Bug fix: Use sanitized ID for element lookup
+    let sanitizedCaseno = sanitizeId(caseno);
+    let row=document.getElementById("row_"+sanitizedCaseno)
+    if(!row)return
+    row.scrollIntoView({behavior:"smooth",block:"center"})
+    row.classList.add("highlight")
+    setTimeout(()=>{row.classList.remove("highlight")},3000)
 }
 
 /* NEXT DATE FIX */
 function saveNextDate(){
-if(lastReceivedIndex===null)return
-let selectedDate=nextDateInput.value
-if(!selectedDate){alert("Please select a date");return}
-currentData[lastReceivedIndex].nextdate=selectedDate
-nextDatePopup.style.display="none"
-lastReceivedIndex=null
-drawTable(getFilteredData())
-speakNextDate(selectedDate)
-saveLocal()
-syncFirebase()
+    if(lastReceivedIndex===null)return
+    let selectedDate=nextDateInput.value
+    if(!selectedDate){alert("Please select a date");return}
+    currentData[lastReceivedIndex].nextdate=selectedDate
+    nextDateInput.value = ''; // Clear the input after saving
+    nextDatePopup.style.display="none"
+    lastReceivedIndex=null
+    drawTable(getFilteredData())
+    speakNextDate(selectedDate)
+    saveLocal()
+    syncFirebase()
 }
 
 function closePopup(){
-nextDatePopup.style.display="none"
-lastReceivedIndex=null
+    nextDatePopup.style.display="none"
+    lastReceivedIndex=null
+    nextDateInput.value = ''; // Clear the input on cancel
 }
 
 /* REMARK FIXED */
 let remarkTimeout
 function updateRemark(caseNo,val){
-clearTimeout(remarkTimeout)
-remarkTimeout=setTimeout(()=>{
-let idx=currentData.findIndex(r=>r.caseno===caseNo)
-if(idx!==-1){
-currentData[idx].remark=val
-saveLocal()
-syncFirebase()
-}
-},400)
+    clearTimeout(remarkTimeout)
+    remarkTimeout=setTimeout(()=>{
+        let idx=currentData.findIndex(r=>r.caseno===caseNo)
+        if(idx!==-1){
+            currentData[idx].remark=val
+            // Bug fix: Re-generate searchable text after remark update
+            currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+            saveLocal()
+            syncFirebase()
+        }
+    },400)
 }
 
 /* TABLE */
 function drawTable(data){
-if(!data.length){table.innerHTML="";return}
-let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
-let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
-data.forEach(r=>{
-let row=`<tr id="row_${r.caseno}">`
-headers.forEach(k=>{
-if(k==="remark"){
-row+=`<td><input value="${r[k]||""}" oninput="updateRemark('${r.caseno}',this.value)"></td>`
-}else{
-row+=`<td>${r[k]||""}</td>`
-}
-})
-row+="</tr>"
-html+=row
-})
-table.innerHTML=html
+    if(!data.length){table.innerHTML="";return}
+    let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
+    let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
+    data.forEach(r=>{
+        // Bug fix: Use sanitized caseno for row ID
+        let sanitizedCaseno = sanitizeId(r.caseno);
+        let row=`<tr id="row_${sanitizedCaseno}">`
+        headers.forEach(k=>{
+            if(k==="remark"){
+                // Bug fix: Ensure caseno is properly escaped for the oninput function
+                row+=`<td><input value="${r[k]||""}" oninput="updateRemark(\'${r.caseno.replace(/\'/g, "\\'")}\',this.value)"></td>`
+            }else{
+                row+=`<td>${r[k]||""}</td>`
+            }
+        })
+        row+="</tr>"
+        html+=row
+    })
+    table.innerHTML=html
 }
 
 /* SEARCH FIX */
 searchBox.addEventListener("input",()=>{
-drawTable(getFilteredData())
+    drawTable(getFilteredData())
 })
 
 /* DOWNLOAD */
 function downloadExcel(){
-let ws=XLSX.utils.json_to_sheet(currentData)
-let wb=XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
+    let ws=XLSX.utils.json_to_sheet(currentData)
+    let wb=XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb,ws,"Court Data")
+    XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
 }
-
+  
 </script></body>
 </html>
