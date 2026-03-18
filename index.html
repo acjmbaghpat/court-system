@@ -63,7 +63,6 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 // IndexedDB setup
 const DB_NAME = 'CourtFileManagerDB';
 const DB_VERSION = 1;
-const STORE_RECORDS = 'courtRecords';
 const STORE_VERSIONS = 'versions';
 const STORE_METADATA = 'metadata';
 
@@ -76,11 +75,6 @@ function openDatabase() {
 
         request.onupgradeneeded = (event) => {
             const dbInstance = event.target.result;
-            if (!dbInstance.objectStoreNames.contains(STORE_RECORDS)) {
-                const recordStore = dbInstance.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
-                recordStore.createIndex('workDate', 'workDate', { unique: false });
-                recordStore.createIndex('caseno', 'caseno', { unique: false });
-            }
             if (!dbInstance.objectStoreNames.contains(STORE_VERSIONS)) {
                 dbInstance.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
             }
@@ -107,21 +101,6 @@ async function getObjectStore(storeName, mode) {
     }
     const transaction = db.transaction(storeName, mode);
     return transaction.objectStore(storeName);
-}
-
-async function idbGetAllRecords() {
-    const store = await getObjectStore(STORE_METADATA, 'readonly');
-    return new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onsuccess = () => {
-            // Filter only records that look like data keys (workDate_version)
-            const records = request.result
-                .filter(item => item.key.includes('_') && Array.isArray(item.value))
-                .flatMap(item => item.value);
-            resolve(records);
-        };
-        request.onerror = (event) => reject(event.target.error);
-    });
 }
 
 async function idbDeleteMetadata(key) {
@@ -210,7 +189,7 @@ async function deleteOldData(){
         request.onsuccess = async () => {
             const keys = request.result;
             for (const key of keys) {
-                if (key.includes('_') && !key.startsWith('current_version_')) {
+                if (key.includes('_') && !key.startsWith('current_version_') && !key.startsWith('last_')) {
                     let datePart = key.split('_')[0];
                     let fileDate = new Date(datePart);
                     if (!isNaN(fileDate)) {
@@ -264,8 +243,12 @@ function getFilteredData(){
 window.onload=async()=>{
     try {
         await openDatabase();
-        let today=new Date().toISOString().split("T")[0]
-        workDate.value=today
+        
+        // Restore last used date or default to today
+        let savedDate = localStorage.getItem('lastWorkDate');
+        let today = new Date().toISOString().split("T")[0];
+        workDate.value = savedDate || today;
+        
         await loadVersions()
         await loadCurrentVersion()
         await loadLocal()
@@ -391,6 +374,7 @@ function loadFirebase(){
 
 /* DATE CHANGE */
 workDate.addEventListener("change",async()=>{
+    localStorage.setItem('lastWorkDate', workDate.value);
     await loadVersions()
     await loadCurrentVersion()
     await loadLocal()
@@ -456,6 +440,7 @@ async function uploadExcel(){
                 syncFirebase()
                 
                 speak("Excel uploaded")
+                alert("Excel uploaded successfully!");
                 excelFile.value=""
             } catch (err) {
                 console.error("Excel processing error:", err);
@@ -514,17 +499,19 @@ async function handleScan(code){
     if(idx===-1){alert("File Not Found");speak("File not found");return}
     
     if(scanMode==="SENT"){
-        if(currentData[idx].sent==="Sent"){alert("Already Sent");return}
+        if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
         currentData[idx].sent="Sent"
+        alert("Sent")
         speak("File sent")
     }
     
     if(scanMode==="RECEIVED"){
-        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");return}
-        if(currentData[idx].received==="Received"){alert("Already Received");return}
+        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
+        if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
         currentData[idx].received="Received"
         currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
         lastReceivedIndex=idx
+        alert("Received")
         speak("File received")
         nextDatePopup.style.display="block"
     }
@@ -608,12 +595,6 @@ searchBox.addEventListener("input",()=>{
     drawTable(getFilteredData())
 })
 
-/* DOWNLOAD */
-function downloadExcel(){
-    let ws=XLSX.utils.json_to_sheet(currentData)
-    let wb=XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-    XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
-}
+/*
     </script></body>
 </html>
