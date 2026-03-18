@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Court File Manager (IndexedDB)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"><!-- FIX 1: ZXing removed --><script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script><style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
 body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
 .section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
 input,button,select{width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc}
@@ -20,47 +25,71 @@ th,td{border:1px solid #ddd;padding:6px;font-size:13px}
 #popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
 .highlight{background:#fff3cd;animation:blink 1s 3}
 @keyframes blink{0%{background:#fff3cd}50%{background:#ffffff}100%{background:#fff3cd}}
-</style></head><body><div class="section">
-<h3>📅 Working Date</h3>
-<input type="date" id="workDate">
-<select id="versionSelect"></select>
-</div><div class="dashboard">
-<div class="card">📁 Total<br><span id="totalCount">0</span></div>
-<div class="card">📤 Sent<br><span id="sentCount">0</span></div>
-<div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-<div class="card">💾 Storage<br><span id="storageUsage">0%</span></div>
-</div><div class="section">
-<h3>📥 Excel Upload</h3>
-<input type="file" id="excelFile">
-<button onclick="uploadExcel()">Upload Excel</button>
-</div><div class="section">
-<h3>🔍 Search</h3>
-<input type="text" id="searchBox">
-</div><div class="section">
-<h3>📷 Scan</h3>
-<div class="scan-grid">
-<button onclick="scanSent()">📤 Scan SENT</button>
-<button onclick="scanReceived()">📥 Scan RECEIVED</button>
-</div>
-</div><div class="section">
-<button onclick="downloadExcel()">📤 Download Excel</button>
-</div><div class="table-wrap">
-<table id="table"></table>
-</div><div class="section">
-<button onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
-</div><div id="scannerWrap">
-<div id="video"></div>
-<button onclick="stopScanner()">Close Scanner</button>
-</div><div id="nextDatePopup">
-<div id="popupBox">
-<h3>📅 Next Date</h3>
-<input type="date" id="nextDateInput">
-<button onclick="saveNextDate()">Save</button>
-<button onclick="closePopup()">Cancel</button>
-</div>
-</div><script>
+</style>
+</head>
+<body>
 
-// IndexedDB setup
+<div class="section">
+  <h3>📅 Working Date</h3>
+  <input type="date" id="workDate">
+  <select id="versionSelect"></select>
+</div>
+
+<div class="dashboard">
+  <div class="card">📁 Total<br><span id="totalCount">0</span></div>
+  <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
+  <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
+  <div class="card">💾 Storage<br><span id="storageUsage">...</span></div>
+</div>
+
+<div class="section">
+  <h3>📥 Excel Upload</h3>
+  <input type="file" id="excelFile">
+  <button onclick="uploadExcel()">Upload Excel</button>
+</div>
+
+<div class="section">
+  <h3>🔍 Search</h3>
+  <input type="text" id="searchBox">
+</div>
+
+<div class="section">
+  <h3>📷 Scan</h3>
+  <div class="scan-grid">
+    <button onclick="scanSent()">📤 Scan SENT</button>
+    <button onclick="scanReceived()">📥 Scan RECEIVED</button>
+  </div>
+</div>
+
+<div class="section">
+  <button onclick="downloadExcel()">📤 Download Excel</button>
+</div>
+
+<div class="table-wrap">
+  <table id="table"></table>
+</div>
+
+<div class="section">
+  <button onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
+</div>
+
+<div id="scannerWrap">
+  <div id="video"></div>
+  <button onclick="stopScanner()">Close Scanner</button>
+</div>
+
+<div id="nextDatePopup">
+  <div id="popupBox">
+    <h3>📅 Next Date</h3>
+    <input type="date" id="nextDateInput">
+    <button onclick="saveNextDate()">Save</button>
+    <button onclick="closePopup()">Cancel</button>
+  </div>
+</div>
+
+<script>
+
+// ===================== IndexedDB Setup =====================
 const DB_NAME = 'CourtFileManagerDB';
 const DB_VERSION = 1;
 const STORE_VERSIONS = 'versions';
@@ -96,9 +125,7 @@ function openDatabase() {
 }
 
 async function getObjectStore(storeName, mode) {
-    if (!db) {
-        await openDatabase();
-    }
+    if (!db) await openDatabase();
     const transaction = db.transaction(storeName, mode);
     return transaction.objectStore(storeName);
 }
@@ -148,159 +175,200 @@ async function idbSaveCurrentVersion(workDate, version) {
     });
 }
 
-
-/* HELPER FUNCTIONS */
+// ===================== Helpers =====================
 function sanitizeId(id) {
     return String(id || "").replace(/[^a-zA-Z0-9-_]/g, '_');
 }
 
 function generateSearchableText(record) {
-    return Object.values(record).filter(val => typeof val === 'string' || typeof val === 'number').join(' ').toLowerCase();
+    const keys = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
+    return keys.map(k => record[k] || "").join(' ').toLowerCase();
+    // FIX 4 side-effect: searchableText itself is NOT included, so generateSearchableText won't recurse
 }
 
-/* SPEAKER */
-function speak(msg){
-    let speech=new SpeechSynthesisUtterance(msg)
-    speech.lang="en-IN"
-    speech.rate=1
-    speechSynthesis.speak(speech)
+// ===================== Speaker =====================
+function speak(msg) {
+    let speech = new SpeechSynthesisUtterance(msg);
+    speech.lang = "en-IN";
+    speech.rate = 1;
+    speechSynthesis.speak(speech);
 }
 
-function speakNextDate(dateStr){
-    if(!dateStr)return
-    let d=new Date(dateStr)
-    let day=d.getDate()
-    let month=d.toLocaleString("en-IN",{month:"long"})
-    speak("Next date "+day+" "+month)
+function speakNextDate(dateStr) {
+    if (!dateStr) return;
+    let d = new Date(dateStr);
+    let day = d.getDate();
+    let month = d.toLocaleString("en-IN", { month: "long" });
+    speak("Next date " + day + " " + month);
 }
 
-/* STORAGE */
-async function updateStorageUsage(){
-    storageUsage.innerText="IndexedDB";
-}
-
-/* DELETE OLD */
-async function deleteOldData(){
-    let today=new Date()
-    let deletedCount = 0;
+// ===================== BUG 1 FIX: Storage — actual MB dikhao =====================
+async function updateStorageUsage() {
     try {
-        const store = await getObjectStore(STORE_METADATA, 'readwrite');
-        const request = store.getAllKeys();
-        request.onsuccess = async () => {
-            const keys = request.result;
-            for (const key of keys) {
-                if (key.includes('_') && !key.startsWith('current_version_')) {
-                    let datePart = key.split('_')[0];
-                    let fileDate = new Date(datePart);
-                    if (!isNaN(fileDate)) {
-                        let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
-                        if (diff > 30) {
-                            await idbDeleteMetadata(key);
-                            deletedCount++;
-                        }
+        if (navigator.storage && navigator.storage.estimate) {
+            const estimate = await navigator.storage.estimate();
+            const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+            const totalMB = (estimate.quota / (1024 * 1024)).toFixed(0);
+            const pct = ((estimate.usage / estimate.quota) * 100).toFixed(1);
+            storageUsage.innerText = usedMB + "MB / " + totalMB + "MB (" + pct + "%)";
+        } else {
+            storageUsage.innerText = "IndexedDB";
+        }
+    } catch(e) {
+        storageUsage.innerText = "IndexedDB";
+    }
+}
+
+// ===================== BUG 5 FIX: Delete Old Data — STORE_VERSIONS bhi clean karo =====================
+async function deleteOldData() {
+    let today = new Date();
+    let deletedCount = 0;
+
+    try {
+        // 1. STORE_METADATA se purani data entries delete karo
+        const metaStore = await getObjectStore(STORE_METADATA, 'readwrite');
+        const metaKeys = await new Promise((resolve, reject) => {
+            const req = metaStore.getAllKeys();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+
+        for (const key of metaKeys) {
+            if (!key.startsWith('current_version_')) {
+                // key format: "2025-01-01_1"
+                let datePart = key.substring(0, 10);
+                let fileDate = new Date(datePart);
+                if (!isNaN(fileDate)) {
+                    let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
+                    if (diff > 30) {
+                        await idbDeleteMetadata(key);
+                        deletedCount++;
                     }
                 }
             }
-            alert(deletedCount + " old version records deleted.");
-        };
+        }
+
+        // 2. STORE_VERSIONS se purani date entries delete karo
+        const verStore = await getObjectStore(STORE_VERSIONS, 'readwrite');
+        const allDates = await new Promise((resolve, reject) => {
+            const req = verStore.getAllKeys();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+
+        for (const dateKey of allDates) {
+            let fileDate = new Date(dateKey);
+            if (!isNaN(fileDate)) {
+                let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
+                if (diff > 30) {
+                    await new Promise((resolve, reject) => {
+                        const req = verStore.delete(dateKey);
+                        req.onsuccess = () => resolve();
+                        req.onerror = (e) => reject(e.target.error);
+                    });
+                }
+            }
+        }
+
+        alert(deletedCount + " old records deleted.");
+        updateStorageUsage();
     } catch (error) {
         console.error("Error deleting old data:", error);
         alert("Failed to delete old data.");
     }
 }
 
-/* FIREBASE */
-const firebaseConfig={
-    apiKey:"AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-    authDomain:"court-file-system.firebaseapp.com",
-    projectId:"court-file-system"
-}
+// ===================== Firebase =====================
+const firebaseConfig = {
+    apiKey: "AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
+    authDomain: "court-file-system.firebaseapp.com",
+    projectId: "court-file-system"
+};
 
-firebase.initializeApp(firebaseConfig)
-const dbCloud=firebase.firestore()
+firebase.initializeApp(firebaseConfig);
+const dbCloud = firebase.firestore();
 
-let currentData=[]
-let uploadVersion=1
-let scanMode=""
-let html5Qr=null
-let lastReceivedIndex=null
-let unsubscribe=null
+let currentData = [];
+let uploadVersion = 1;
+let scanMode = "";
+let html5Qr = null;
+let lastReceivedIndex = null;
+let unsubscribe = null;
+let lastScanCode = "";
+let lastScanTime = 0;
 
-let lastScanCode=""
-let lastScanTime=0
+async function dataKey() { return workDate.value + "_" + uploadVersion; }
 
-async function dataKey(){ return workDate.value + "_" + uploadVersion; }
-
-/* FILTER */
-function getFilteredData(){
-    let q=searchBox.value.toLowerCase()
+// ===================== Filter =====================
+function getFilteredData() {
+    let q = searchBox.value.toLowerCase();
     return q
-    ? currentData.filter(r=>r.searchableText && r.searchableText.includes(q))
-    : currentData
+        ? currentData.filter(r => r.searchableText && r.searchableText.includes(q))
+        : currentData;
 }
 
-/* LOAD */
-window.onload=async()=>{
+// ===================== Init =====================
+window.onload = async () => {
     try {
         await openDatabase();
-        
-        // Restore last used date or default to today
         let savedDate = localStorage.getItem('lastWorkDate');
         let today = new Date().toISOString().split("T")[0];
         workDate.value = savedDate || today;
-        
-        await loadVersions()
-        await loadCurrentVersion()
-        await loadLocal()
-        loadFirebase()
-        updateStorageUsage()
+
+        await loadVersions();
+        await loadCurrentVersion();
+        await loadLocal();
+        loadFirebase();
+        updateStorageUsage();
     } catch (e) {
         console.error("Initialization error:", e);
     }
+};
+
+// ===================== Dashboard =====================
+function updateDashboard() {
+    totalCount.innerText = currentData.length;
+    sentCount.innerText = currentData.filter(x => x.sent === "Sent").length;
+    receivedCount.innerText = currentData.filter(x => x.received === "Received").length;
 }
 
-/* DASHBOARD */
-function updateDashboard(){
-    totalCount.innerText=currentData.length
-    sentCount.innerText=currentData.filter(x=>x.sent==="Sent").length
-    receivedCount.innerText=currentData.filter(x=>x.received==="Received").length
+// ===================== Version =====================
+
+// BUG 2 FIX: saveVersions ab 2 params leta hai — (date, arr)
+async function saveVersions(date, arr) {
+    await idbSaveVersions(date, arr);
 }
 
-/* VERSION */
-async function saveVersions(arr){
-    await idbSaveVersions(workDate.value, arr);
-}
-
-async function loadVersions(){
-    versionSelect.innerHTML=""
+async function loadVersions() {
+    versionSelect.innerHTML = "";
     const versions = await idbGetVersions(workDate.value);
-    if(versions.length === 0) {
-        let opt=document.createElement("option")
-        opt.value="1"
-        opt.text="Upload 1"
-        versionSelect.appendChild(opt)
+    if (versions.length === 0) {
+        let opt = document.createElement("option");
+        opt.value = "1";
+        opt.text = "Upload 1";
+        versionSelect.appendChild(opt);
         return;
     }
-    versions.forEach(v=>{
-        let opt=document.createElement("option")
-        opt.value=v
-        opt.text="Upload "+v
-        versionSelect.appendChild(opt)
-    })
+    versions.forEach(v => {
+        let opt = document.createElement("option");
+        opt.value = v;
+        opt.text = "Upload " + v;
+        versionSelect.appendChild(opt);
+    });
 }
 
-async function saveCurrentVersion(){
+async function saveCurrentVersion() {
     await idbSaveCurrentVersion(workDate.value, uploadVersion);
 }
 
-async function loadCurrentVersion(){
+async function loadCurrentVersion() {
     const v = await idbGetCurrentVersion(workDate.value);
     uploadVersion = parseInt(v);
     versionSelect.value = uploadVersion;
 }
 
-/* LOCAL */
-async function saveLocal(){
+// ===================== Local Save/Load =====================
+async function saveLocal() {
     try {
         const key = await dataKey();
         const store = await getObjectStore(STORE_METADATA, 'readwrite');
@@ -309,19 +377,20 @@ async function saveLocal(){
             request.onsuccess = () => resolve();
             request.onerror = (event) => reject(event.target.error);
         });
+        updateStorageUsage();
     } catch (e) {
         console.error("Error saving to IndexedDB:", e);
     }
 }
 
-async function loadLocal(){
+async function loadLocal() {
     try {
         const key = await dataKey();
         const store = await getObjectStore(STORE_METADATA, 'readonly');
         const request = store.get(key);
         await new Promise((resolve, reject) => {
             request.onsuccess = () => {
-                if(request.result && request.result.value){
+                if (request.result && request.result.value) {
                     currentData = request.result.value;
                     currentData.forEach(r => r.searchableText = generateSearchableText(r));
                 } else {
@@ -341,267 +410,312 @@ async function loadLocal(){
     }
 }
 
-/* FIREBASE */
-async function syncFirebase(){
-    let id=workDate.value+"_"+uploadVersion
+// ===================== Firebase Sync =====================
+async function syncFirebase() {
+    let id = workDate.value + "_" + uploadVersion;
     try {
-        await dbCloud.collection("courtfiles").doc(id).set({data:currentData},{merge:true});
+        await dbCloud.collection("courtfiles").doc(id).set({ data: currentData }, { merge: true });
     } catch (error) {
         console.error("Error syncing to Firebase:", error);
     }
 }
 
-function loadFirebase(){
-    let id=workDate.value+"_"+uploadVersion
-    if(unsubscribe)unsubscribe()
+// BUG 3 FIX: onSnapshot se remark input wipe na ho
+function loadFirebase() {
+    let id = workDate.value + "_" + uploadVersion;
+    if (unsubscribe) unsubscribe();
     try {
-        unsubscribe=dbCloud.collection("courtfiles").doc(id)
-        .onSnapshot(doc=>{
-            if(doc.exists){
-                currentData = doc.data().data || []
-                currentData.forEach(r => r.searchableText = generateSearchableText(r));
-                drawTable(getFilteredData())
-                updateDashboard()
-                saveLocal()
-            }
-        }, error => {
-            console.error("Firebase error:", error);
-        })
+        unsubscribe = dbCloud.collection("courtfiles").doc(id)
+            .onSnapshot(doc => {
+                if (doc.exists) {
+                    // Active remark input ka caseno aur value bachao
+                    let activeEl = document.activeElement;
+                    let activeCaseNo = null;
+                    let activeValue = null;
+                    if (activeEl && activeEl.dataset && activeEl.dataset.caseno) {
+                        activeCaseNo = activeEl.dataset.caseno;
+                        activeValue = activeEl.value;
+                    }
+
+                    let incoming = doc.data().data || [];
+                    incoming.forEach(r => {
+                        r.searchableText = generateSearchableText(r);
+                        // Agar user isi record ka remark type kar raha hai to overwrite mat karo
+                        if (activeCaseNo && r.caseno === activeCaseNo) {
+                            r.remark = activeValue;
+                        }
+                    });
+                    currentData = incoming;
+
+                    drawTable(getFilteredData());
+                    updateDashboard();
+                    saveLocal();
+
+                    // Focus aur cursor position restore karo
+                    if (activeCaseNo) {
+                        setTimeout(() => {
+                            let inp = document.querySelector(`input[data-caseno="${CSS.escape(activeCaseNo)}"]`);
+                            if (inp) {
+                                inp.focus();
+                                inp.value = activeValue;
+                                inp.setSelectionRange(activeValue.length, activeValue.length);
+                            }
+                        }, 30);
+                    }
+                }
+            }, error => {
+                console.error("Firebase error:", error);
+            });
     } catch (error) {
         console.error("Firebase setup error:", error);
     }
 }
 
-/* DATE CHANGE */
-workDate.addEventListener("change",async()=>{
+// ===================== Date / Version Change =====================
+workDate.addEventListener("change", async () => {
     localStorage.setItem('lastWorkDate', workDate.value);
-    await loadVersions()
-    await loadCurrentVersion()
-    await loadLocal()
-    loadFirebase()
-})
+    await loadVersions();
+    await loadCurrentVersion();
+    await loadLocal();
+    loadFirebase();
+});
 
-versionSelect.addEventListener("change",async()=>{
-    uploadVersion=parseInt(versionSelect.value)
-    await saveCurrentVersion()
-    await loadLocal()
-    loadFirebase()
-})
+versionSelect.addEventListener("change", async () => {
+    uploadVersion = parseInt(versionSelect.value);
+    await saveCurrentVersion();
+    await loadLocal();
+    loadFirebase();
+});
 
-/* EXCEL */
-async function uploadExcel(){
-    let file=excelFile.files[0]
-    if(!file){alert("Select Excel");return}
-    
+// ===================== Excel Upload =====================
+async function uploadExcel() {
+    let file = excelFile.files[0];
+    if (!file) { alert("Select Excel"); return; }
+
     try {
         let versions = await idbGetVersions(workDate.value);
-        uploadVersion=versions.length+1
-        
-        let reader=new FileReader()
-        reader.onload=async e=>{
+        uploadVersion = versions.length + 1;
+
+        let reader = new FileReader();
+        reader.onload = async e => {
             try {
                 let data = e.target.result;
-                let wb=XLSX.read(data,{type:"binary"})
+                let wb = XLSX.read(data, { type: "binary" });
                 let sheetName = wb.SheetNames[0];
-                let rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:""})
-                
-                if(rows.length > 0) rows.shift(); // Remove header
-                
-                currentData=rows.map(r=>{
+                let rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "" });
+
+                if (rows.length > 0) rows.shift(); // Remove header
+
+                currentData = rows.map(r => {
                     const record = {
-                        srno:r[0]||"",
-                        caseno:String(r[1]||"").trim(),
-                        partyname:r[2]||"",
-                        section:r[3]||"",
-                        ps:r[4]||"",
-                        sent:"",
-                        received:"",
-                        receiveddate:"",
-                        nextdate:"",
-                        remark:""
+                        srno: r[0] || "",
+                        caseno: String(r[1] || "").trim(),
+                        partyname: r[2] || "",
+                        section: r[3] || "",
+                        ps: r[4] || "",
+                        sent: "",
+                        received: "",
+                        receiveddate: "",
+                        nextdate: "",
+                        remark: ""
                     };
                     record.searchableText = generateSearchableText(record);
                     return record;
-                }).filter(r => r.caseno !== ""); // Filter out empty case numbers
-                
-                let opt=document.createElement("option")
-                opt.value=uploadVersion
-                opt.text="Upload "+uploadVersion
-                versionSelect.appendChild(opt)
-                versionSelect.value=uploadVersion
-                
-                versions.push(uploadVersion)
+                }).filter(r => r.caseno !== "");
+
+                let opt = document.createElement("option");
+                opt.value = uploadVersion;
+                opt.text = "Upload " + uploadVersion;
+                versionSelect.appendChild(opt);
+                versionSelect.value = uploadVersion;
+
+                versions.push(uploadVersion);
+                // BUG 2 FIX: ab 2 sahi params pass ho rahe hain
                 await saveVersions(workDate.value, versions);
-                await saveCurrentVersion()
-                
-                drawTable(getFilteredData())
-                updateDashboard()
-                await saveLocal()
-                syncFirebase()
-                
-                speak("Excel uploaded")
+                await saveCurrentVersion();
+
+                drawTable(getFilteredData());
+                updateDashboard();
+                await saveLocal();
+                syncFirebase();
+
+                speak("Excel uploaded");
                 alert("Excel uploaded successfully!");
-                excelFile.value=""
+                excelFile.value = "";
             } catch (err) {
                 console.error("Excel processing error:", err);
                 alert("Error processing Excel file.");
             }
-        }
+        };
         reader.onerror = () => alert("Error reading file.");
-        reader.readAsBinaryString(file)
+        reader.readAsBinaryString(file);
     } catch (err) {
         console.error("Upload error:", err);
         alert("Upload failed.");
     }
 }
 
-/* SCANNER */
-function scanSent(){scanMode="SENT";startScanner()}
-function scanReceived(){scanMode="RECEIVED";startScanner()}
+// ===================== Scanner =====================
+function scanSent() { scanMode = "SENT"; startScanner(); }
+function scanReceived() { scanMode = "RECEIVED"; startScanner(); }
 
-async function startScanner(){
-    scannerWrap.style.display="block"
-    html5Qr=new Html5Qrcode("video")
+async function startScanner() {
+    scannerWrap.style.display = "block";
+    html5Qr = new Html5Qrcode("video");
     try {
-        let devices=await Html5Qrcode.getCameras()
+        let devices = await Html5Qrcode.getCameras();
         if (devices.length === 0) {
             alert("No camera found.");
             stopScanner();
             return;
         }
-        let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length-1];
+        let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length - 1];
         html5Qr.start(
             cam.id,
-            { fps:10, qrbox:250 },
-            (text)=>handleScan(text.trim())
-        )
+            { fps: 10, qrbox: 250 },
+            (text) => handleScan(text.trim())
+        );
     } catch (error) {
         console.error("Scanner error:", error);
         stopScanner();
     }
 }
 
-function stopScanner(){
-    if(html5Qr){
-        html5Qr.stop().then(()=>html5Qr.clear()).catch(e => console.error(e));
-        html5Qr=null
+function stopScanner() {
+    if (html5Qr) {
+        html5Qr.stop().then(() => html5Qr.clear()).catch(e => console.error(e));
+        html5Qr = null;
     }
-    scannerWrap.style.display="none"
+    scannerWrap.style.display = "none";
 }
 
-async function handleScan(code){
-    let now=Date.now()
-    if(code===lastScanCode && now-lastScanTime<1500) return;
-    lastScanCode=code;
-    lastScanTime=now;
+async function handleScan(code) {
+    let now = Date.now();
+    if (code === lastScanCode && now - lastScanTime < 1500) return;
+    lastScanCode = code;
+    lastScanTime = now;
 
-    let idx=currentData.findIndex(r=>r.caseno===code)
-    if(idx===-1){alert("File Not Found");speak("File not found");return}
-    
-    if(scanMode==="SENT"){
-        if(currentData[idx].sent==="Sent"){alert("Already Sent");speak("Already sent");return}
-        currentData[idx].sent="Sent"
-        alert("Sent")
-        speak("File sent")
+    let idx = currentData.findIndex(r => r.caseno === code);
+    if (idx === -1) { alert("File Not Found"); speak("File not found"); return; }
+
+    if (scanMode === "SENT") {
+        if (currentData[idx].sent === "Sent") { alert("Already Sent"); speak("Already sent"); return; }
+        currentData[idx].sent = "Sent";
+        alert("Sent");
+        speak("File sent");
     }
-    
-    if(scanMode==="RECEIVED"){
-        if(currentData[idx].sent!=="Sent"){alert("File Not Sent Yet");speak("File not sent yet");return}
-        if(currentData[idx].received==="Received"){alert("Already Received");speak("Already received");return}
-        currentData[idx].received="Received"
-        currentData[idx].receiveddate=new Date().toISOString().split("T")[0]
-        lastReceivedIndex=idx
-        alert("Received")
-        speak("File received")
-        nextDatePopup.style.display="block"
+
+    if (scanMode === "RECEIVED") {
+        if (currentData[idx].sent !== "Sent") { alert("File Not Sent Yet"); speak("File not sent yet"); return; }
+        if (currentData[idx].received === "Received") { alert("Already Received"); speak("Already received"); return; }
+        currentData[idx].received = "Received";
+        currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
+        lastReceivedIndex = idx;
+        alert("Received");
+        speak("File received");
+        nextDatePopup.style.display = "block";
     }
-    
-    drawTable(getFilteredData())
-    scrollToFile(code)
-    updateDashboard()
-    await saveLocal()
-    syncFirebase()
+
+    drawTable(getFilteredData());
+    scrollToFile(code);
+    updateDashboard();
+    await saveLocal();
+    syncFirebase();
 }
 
-/* SCROLL */
-function scrollToFile(caseno){
+// ===================== Scroll =====================
+function scrollToFile(caseno) {
     let sanitizedCaseno = sanitizeId(caseno);
-    let row=document.getElementById("row_"+sanitizedCaseno)
-    if(!row)return
-    row.scrollIntoView({behavior:"smooth",block:"center"})
-    row.classList.add("highlight")
-    setTimeout(()=>{row.classList.remove("highlight")},3000)
+    let row = document.getElementById("row_" + sanitizedCaseno);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.add("highlight");
+    setTimeout(() => { row.classList.remove("highlight"); }, 3000);
 }
 
-/* NEXT DATE */
-async function saveNextDate(){
-    if(lastReceivedIndex===null)return
-    let selectedDate=nextDateInput.value
-    if(!selectedDate){alert("Please select a date");return}
-    currentData[lastReceivedIndex].nextdate=selectedDate
+// ===================== Next Date =====================
+async function saveNextDate() {
+    if (lastReceivedIndex === null) return;
+    let selectedDate = nextDateInput.value;
+    if (!selectedDate) { alert("Please select a date"); return; }
+    currentData[lastReceivedIndex].nextdate = selectedDate;
     nextDateInput.value = '';
-    nextDatePopup.style.display="none"
-    lastReceivedIndex=null
-    drawTable(getFilteredData())
-    speakNextDate(selectedDate)
-    await saveLocal()
-    syncFirebase()
+    nextDatePopup.style.display = "none";
+    lastReceivedIndex = null;
+    drawTable(getFilteredData());
+    speakNextDate(selectedDate);
+    await saveLocal();
+    syncFirebase();
 }
 
-function closePopup(){
-    nextDatePopup.style.display="none"
-    lastReceivedIndex=null
+function closePopup() {
+    nextDatePopup.style.display = "none";
+    lastReceivedIndex = null;
 }
 
-/* REMARK */
-let remarkTimeout
-async function updateRemark(caseNo,val){
-    clearTimeout(remarkTimeout)
-    remarkTimeout=setTimeout(async()=>{
-        let idx=currentData.findIndex(r=>r.caseno===caseNo)
-        if(idx!==-1){
-            currentData[idx].remark=val
+// ===================== Remark =====================
+let remarkTimeout;
+async function updateRemark(caseNo, val) {
+    clearTimeout(remarkTimeout);
+    remarkTimeout = setTimeout(async () => {
+        let idx = currentData.findIndex(r => r.caseno === caseNo);
+        if (idx !== -1) {
+            currentData[idx].remark = val;
             currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-            await saveLocal()
-            syncFirebase()
+            await saveLocal();
+            syncFirebase();
         }
-    },400)
+    }, 400);
 }
 
-/* TABLE */
-function drawTable(data){
-    if(!data || !data.length){table.innerHTML="";return}
-    let headers=["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"]
-    let html="<tr>"+headers.map(x=>"<th>"+x+"</th>").join("")+"</tr>"
-    data.forEach(r=>{
+// ===================== Table =====================
+function drawTable(data) {
+    if (!data || !data.length) { table.innerHTML = ""; return; }
+    let headers = ["srno", "caseno", "partyname", "section", "ps", "sent", "received", "receiveddate", "nextdate", "remark"];
+    let html = "<tr>" + headers.map(x => "<th>" + x + "</th>").join("") + "</tr>";
+    data.forEach(r => {
         let sanitizedCaseno = sanitizeId(r.caseno);
-        let row=`<tr id="row_${sanitizedCaseno}">`
-        headers.forEach(k=>{
-            if(k==="remark"){
-                let escapedCaseno = String(r.caseno).replace(/'/g, "\\'");
-                row+=`<td><input value="${r[k]||""}" oninput="updateRemark('${escapedCaseno}',this.value)"></td>`
-            }else{
-                row+=`<td>${r[k]||""}</td>`
+        let row = `<tr id="row_${sanitizedCaseno}">`;
+        headers.forEach(k => {
+            if (k === "remark") {
+                // BUG 3 FIX: data-caseno attribute add kiya — Firebase focus restore ke liye
+                let escapedCaseno = String(r.caseno).replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                row += `<td><input data-caseno="${String(r.caseno).replace(/"/g,'&quot;')}" value="${(r[k] || "").replace(/"/g,'&quot;')}" oninput="updateRemark('${escapedCaseno}',this.value)"></td>`;
+            } else {
+                row += `<td>${r[k] || ""}</td>`;
             }
-        })
-        row+="</tr>"
-        html+=row
-    })
-    table.innerHTML=html
+        });
+        row += "</tr>";
+        html += row;
+    });
+    table.innerHTML = html;
 }
 
-/* SEARCH */
-searchBox.addEventListener("input",()=>{
-    drawTable(getFilteredData())
-})
+// ===================== Search =====================
+searchBox.addEventListener("input", () => {
+    drawTable(getFilteredData());
+});
 
-/* DOWNLOAD */
-function downloadExcel(){
-    let ws=XLSX.utils.json_to_sheet(currentData)
-    let wb=XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb,ws,"Court Data")
-    XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
+// ===================== BUG 4 FIX: Download — searchableText column nahi aayega =====================
+function downloadExcel() {
+    const exportData = currentData.map(r => ({
+        srno: r.srno,
+        caseno: r.caseno,
+        partyname: r.partyname,
+        section: r.section,
+        ps: r.ps,
+        sent: r.sent,
+        received: r.received,
+        receiveddate: r.receiveddate,
+        nextdate: r.nextdate,
+        remark: r.remark
+    }));
+    let ws = XLSX.utils.json_to_sheet(exportData);
+    let wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Court Data");
+    XLSX.writeFile(wb, "Court_" + workDate.value + ".xlsx");
 }
 
-</script></body>
+</script>
+</body>
 </html>
