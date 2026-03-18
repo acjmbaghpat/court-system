@@ -189,7 +189,7 @@ async function deleteOldData(){
         request.onsuccess = async () => {
             const keys = request.result;
             for (const key of keys) {
-                if (key.includes('_') && !key.startsWith('current_version_') && !key.startsWith('last_')) {
+                if (key.includes('_') && !key.startsWith('current_version_')) {
                     let datePart = key.split('_')[0];
                     let fileDate = new Date(datePart);
                     if (!isNaN(fileDate)) {
@@ -595,6 +595,13 @@ searchBox.addEventListener("input",()=>{
     drawTable(getFilteredData())
 })
 
-/*
-    </script></body>
+/* DOWNLOAD */
+function downloadExcel(){
+    let ws=XLSX.utils.json_to_sheet(currentData)
+    let wb=XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb,ws,"Court Data")
+    XLSX.writeFile(wb,"Court_"+workDate.value+".xlsx")
+}
+
+</script></body>
 </html>
