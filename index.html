@@ -1,721 +1,1455 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Court File Manager (IndexedDB)</title>
+<title>Court File Manager</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-body{font-family:system-ui;background:#f2f4f7;margin:0;padding:10px}
-.section{background:#fff;padding:14px;margin-bottom:12px;border-radius:12px}
-input,button,select{width:100%;padding:12px;margin-top:8px;font-size:15px;border-radius:10px;border:1px solid #ccc}
-button{background:#1976d2;color:#fff;border:none}
-.scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.dashboard{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px}
-.card{background:#fff;padding:10px;border-radius:10px;text-align:center;font-weight:600}
-.table-wrap{background:#fff;border-radius:12px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:900px}
-th,td{border:1px solid #ddd;padding:6px;font-size:13px}
-#scannerWrap{position:fixed;inset:0;background:#000;display:none;z-index:999}
-#video{width:100%;height:75vh}
-#nextDatePopup{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:1000}
-#popupBox{background:#fff;margin:25% auto;padding:20px;width:90%;border-radius:12px}
-.highlight{background:#fff3cd;animation:blink 1s 3}
-@keyframes blink{0%{background:#fff3cd}50%{background:#ffffff}100%{background:#fff3cd}}
+/* ===================== Variables ===================== */
+:root {
+  --primary:       #4f46e5;
+  --primary-hover: #4338ca;
+  --bg-color:      #f8fafc;
+  --surface:       #ffffff;
+  --text-main:     #1e293b;
+  --text-muted:    #64748b;
+  --border:        #e2e8f0;
+  --danger:        #ef4444;
+  --danger-hover:  #dc2626;
+  --success:       #10b981;
+  --success-hover: #059669;
+  --amber:         #f59e0b;
+  --amber-hover:   #d97706;
+  --radius-lg:     16px;
+  --radius-md:     12px;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md:     0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+/* ===================== Base ===================== */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  margin: 0; padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===================== Header ===================== */
+.app-header {
+  background: var(--primary);
+  color: white;
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  letter-spacing: 0.5px;
+}
+
+/* ===================== Layout ===================== */
+.container {
+  padding: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.section {
+  background: var(--surface);
+  padding: 20px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===================== Inputs ===================== */
+input, select {
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 6px;
+  font-size: 15px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  box-sizing: border-box;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+  background-color: var(--surface);
+}
+
+input[type="file"] {
+  padding: 10px;
+  background: var(--surface);
+}
+
+/* ===================== Buttons ===================== */
+button {
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.1s, background-color 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+button:active { transform: scale(0.98); }
+
+/* Default hover — only for primary buttons */
+button:not(.btn-danger):not(.btn-success):not(.btn-amber):not(.btn-grey):hover {
+  background: var(--primary-hover);
+}
+
+.btn-danger          { background: var(--danger); }
+.btn-danger:hover    { background: var(--danger-hover); }
+
+.btn-success         { background: var(--success); }
+.btn-success:hover   { background: var(--success-hover); }
+
+.btn-amber           { background: var(--amber); }
+.btn-amber:hover     { background: var(--amber-hover); }
+
+.btn-grey            { background: #94a3b8; }
+.btn-grey:hover      { background: #64748b; }
+
+/* ===================== Dashboard ===================== */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 600px) {
+  .dashboard { grid-template-columns: repeat(4, 1fr); }
+}
+
+.card {
+  background: var(--surface);
+  padding: 16px 10px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.card span {
+  font-size: 22px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ===================== Table ===================== */
+.table-wrap {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  text-align: left;
+}
+
+th, td {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+th {
+  background: #f1f5f9;
+  font-weight: 600;
+  color: var(--text-main);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+td input {
+  width: 100%;
+  border: 1px solid transparent;
+  padding: 8px;
+  margin: 0;
+  font-size: 14px;
+  background: transparent;
+  border-radius: 6px;
+}
+
+td input:focus {
+  background: var(--surface);
+  border: 1px solid var(--primary);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover         { background-color: #f8fafc; }
+
+/* ===================== Scanner Overlay ===================== */
+#scannerWrap {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(5px);
+  display: none;
+  z-index: 999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+#video {
+  width: 100%;
+  height: 70vh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+#scannerWrap .scan-label {
+  color: white;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+#scannerWrap button {
+  margin-top: 20px;
+  font-size: 16px;
+}
+
+/* ===================== Next Date Popup ===================== */
+#nextDatePopup {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  display: none;
+  z-index: 1000;
+}
+
+#popupBox {
+  background: var(--surface);
+  margin: 30vh auto;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  animation: slideUp 0.3s ease-out;
+}
+
+#popupBox h3    { font-size: 17px; margin-bottom: 14px; }
+#popupBox input { margin-top: 0; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================== Highlight / Pulse ===================== */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.highlight {
+  background: #fef08a !important;
+  animation: pulse 1s 3;
+}
+
+/* ===================== Floating Scan Buttons ===================== */
+.floating-scan {
+  position: fixed;
+  bottom: 20px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 998;
+}
+
+.floating-scan button {
+  width: 155px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+  margin-top: 0;
+}
+
+/* ===================== Manual Entry ===================== */
+.manual-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.manual-action-grid button { margin-top: 0; }
+
+.case-dropdown-wrap { position: relative; }
+
+#caseDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 500;
+  box-shadow: var(--shadow-md);
+  display: none;
+}
+
+#caseDropdown .drop-item {
+  padding: 11px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#caseDropdown .drop-item:last-child { border-bottom: none; }
+
+#caseDropdown .drop-item:hover,
+#caseDropdown .drop-item.active {
+  background: #ede9fe;
+}
+
+#caseDropdown .drop-item .drop-caseno {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 15px;
+}
+
+#caseDropdown .drop-item .drop-party {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.manual-status {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  display: none;
+}
+
+.manual-status.success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  display: block;
+}
+
+.manual-status.error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  display: block;
+}
+
+.manual-status.info {
+  background: #ede9fe;
+  color: var(--primary);
+  border: 1px solid #c4b5fd;
+  display: block;
+}
+
+/* ===================== Filter Tabs ===================== */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.filter-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-color);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  box-shadow: none;
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.3;
+}
+
+.filter-tab .tab-count {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.filter-tab:hover { background: #f1f5f9; border-color: #94a3b8; color: var(--text-main); }
+
+.filter-tab.active-all      { background: #ede9fe; border-color: var(--primary);  color: var(--primary); }
+.filter-tab.active-psent    { background: #fff7ed; border-color: var(--amber);    color: var(--amber-hover); }
+.filter-tab.active-precvd   { background: #f0fdf4; border-color: var(--success);  color: var(--success-hover); }
+
+/* ===================== Backup Section ===================== */
+.backup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.backup-grid button { margin-top: 0; }
+
+.btn-purple       { background: #7c3aed; }
+.btn-purple:hover { background: #6d28d9; }
+
+.btn-purple-outline {
+  background: transparent;
+  border: 2px solid #7c3aed;
+  color: #7c3aed;
+  box-shadow: none;
+}
+.btn-purple-outline:hover {
+  background: #ede9fe;
+  color: #6d28d9;
+}
 </style>
 </head>
 <body>
 
-<div class="section">
-  <h3>📅 Working Date</h3>
-  <input type="date" id="workDate">
-  <select id="versionSelect"></select>
-</div>
+<div class="app-header">⚖️ Court File Manager</div>
 
-<div class="dashboard">
-  <div class="card">📁 Total<br><span id="totalCount">0</span></div>
-  <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
-  <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-  <div class="card">💾 Storage<br><span id="storageUsage">...</span></div>
-</div>
+<div class="container">
 
-<div class="section">
-  <h3>📥 Excel Upload</h3>
-  <input type="file" id="excelFile">
-  <button onclick="uploadExcel()">Upload Excel</button>
-</div>
-
-<div class="section">
-  <h3>🔍 Search</h3>
-  <input type="text" id="searchBox">
-</div>
-
-<div class="section">
-  <h3>📷 Scan</h3>
-  <div class="scan-grid">
-    <button onclick="scanSent()">📤 Scan SENT</button>
-    <button onclick="scanReceived()">📥 Scan RECEIVED</button>
+  <!-- Date & Version -->
+  <div class="section">
+    <h3>📅 Working Date &amp; Version</h3>
+    <input type="date" id="workDate">
+    <select id="versionSelect"></select>
   </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard">
+    <div class="card">📁 Total<br><span id="totalCount">0</span></div>
+    <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
+    <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
+    <div class="card">💾 Storage<br><span id="storageUsage" style="font-size:13px;margin-top:4px;">...</span></div>
+  </div>
+
+  <!-- Excel Upload -->
+  <div class="section">
+    <h3>📥 Excel Upload</h3>
+    <input type="file" id="excelFile" accept=".xlsx,.xls">
+    <button onclick="uploadExcel()">📤 Upload Excel File</button>
+  </div>
+
+  <!-- Search + Filter -->
+  <div class="section">
+    <h3>🔍 Search &amp; Filter</h3>
+    <input type="text" id="searchBox" placeholder="Search by Case No, Party Name...">
+    <div class="filter-tabs">
+      <button class="filter-tab active-all" id="tab-all"    onclick="setFilter('all')">
+        🗂️ All<br><span class="tab-count" id="tabAllCount">0</span>
+      </button>
+      <button class="filter-tab" id="tab-psent"  onclick="setFilter('psent')">
+        ⏳ Pending Sent<br><span class="tab-count" id="tabPSentCount">0</span>
+      </button>
+      <button class="filter-tab" id="tab-precvd" onclick="setFilter('precvd')">
+        🕐 Pending Recv.<br><span class="tab-count" id="tabPRecvdCount">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Manual Entry -->
+  <div class="section">
+    <h3>✍️ Manual Entry</h3>
+    <div class="case-dropdown-wrap">
+      <input
+        type="text"
+        id="manualCaseInput"
+        placeholder="Case No likhein ya list se chunein..."
+        autocomplete="off"
+        oninput="onManualInput()"
+        onkeydown="onManualKeyDown(event)"
+      >
+      <div id="caseDropdown"></div>
+    </div>
+    <div class="manual-action-grid">
+      <button class="btn-amber"   onclick="manualAction('SENT')">📤 Mark SENT</button>
+      <button class="btn-success" onclick="manualAction('RECEIVED')">📥 Mark RECEIVED</button>
+    </div>
+    <div id="manualStatus" class="manual-status"></div>
+  </div>
+
+  <!-- Download -->
+  <div class="section" style="padding:12px;">
+    <button class="btn-success" onclick="downloadExcel()" style="margin-top:0;">📊 Download Excel Report</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table id="table"></table>
+  </div>
+
+  <!-- Backup & Restore -->
+  <div class="section" style="border-color:#7c3aed; background:#faf5ff;">
+    <h3 style="color:#7c3aed;">🗄️ Backup &amp; Restore</h3>
+    <p style="margin:0 0 12px; font-size:13px; color:var(--text-muted);">
+      Poora data (saari dates, saare versions) ek JSON file mein export karo. Wahi file se wapas restore bhi kar sakte ho.
+    </p>
+    <div class="backup-grid">
+      <button class="btn-purple" onclick="exportBackup()">⬇️ Export Backup</button>
+      <button class="btn-purple-outline" onclick="document.getElementById('restoreFile').click()">⬆️ Restore Backup</button>
+    </div>
+    <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="importBackup(event)">
+    <div id="backupStatus" class="manual-status"></div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="section" style="border-color:var(--danger); background:#fef2f2;">
+    <h3 style="color:var(--danger);">⚠️ Danger Zone</h3>
+    <button class="btn-danger" onclick="deleteOldData()">🧹 Delete Data Older Than 60 Days</button>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Floating Scan Buttons -->
+<div class="floating-scan">
+  <button class="btn-amber"   onclick="scanSent()">📤 Scan SENT</button>
+  <button class="btn-success" onclick="scanReceived()">📥 Scan RECEIVED</button>
 </div>
 
-<div class="section">
-  <button onclick="downloadExcel()">📤 Download Excel</button>
-</div>
-
-<div class="table-wrap">
-  <table id="table"></table>
-</div>
-
-<div class="section">
-  <button onclick="deleteOldData()">🧹 Delete Data Older Than 30 Days</button>
-</div>
-
+<!-- Scanner Overlay -->
 <div id="scannerWrap">
+  <div class="scan-label" id="scanLabel">📷 Scanning...</div>
   <div id="video"></div>
-  <button onclick="stopScanner()">Close Scanner</button>
+  <button class="btn-danger" onclick="stopScanner()">❌ Close Scanner</button>
 </div>
 
+<!-- Next Date Popup -->
 <div id="nextDatePopup">
   <div id="popupBox">
-    <h3>📅 Next Date</h3>
+    <h3>📅 Next Hearing Date</h3>
     <input type="date" id="nextDateInput">
-    <button onclick="saveNextDate()">Save</button>
-    <button onclick="closePopup()">Cancel</button>
+    <button onclick="saveNextDate()">✅ Save Date</button>
+    <button class="btn-grey" onclick="closePopup()" style="margin-top:8px;">❌ Skip</button>
   </div>
 </div>
 
 <script>
-
 // ===================== IndexedDB Setup =====================
-const DB_NAME = 'CourtFileManagerDB';
-const DB_VERSION = 1;
+const DB_NAME        = 'CourtFileManagerDB';
+const DB_VERSION     = 1;
 const STORE_VERSIONS = 'versions';
 const STORE_METADATA = 'metadata';
 
 let db;
 
 function openDatabase() {
-    return new Promise((resolve, reject) => {
-        if (db) return resolve(db);
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onupgradeneeded = (event) => {
-            const dbInstance = event.target.result;
-            if (!dbInstance.objectStoreNames.contains(STORE_VERSIONS)) {
-                dbInstance.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
-            }
-            if (!dbInstance.objectStoreNames.contains(STORE_METADATA)) {
-                dbInstance.createObjectStore(STORE_METADATA, { keyPath: 'key' });
-            }
-        };
-
-        request.onsuccess = (event) => {
-            db = event.target.result;
-            resolve(db);
-        };
-
-        request.onerror = (event) => {
-            console.error("IndexedDB error:", event.target.errorCode);
-            reject("IndexedDB error: " + event.target.errorCode);
-        };
-    });
+  return new Promise((resolve, reject) => {
+    if (db) return resolve(db);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE_VERSIONS))
+        d.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
+      if (!d.objectStoreNames.contains(STORE_METADATA))
+        d.createObjectStore(STORE_METADATA, { keyPath: 'key' });
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = e => reject("IndexedDB error: " + e.target.errorCode);
+  });
 }
 
-async function getObjectStore(storeName, mode) {
-    if (!db) await openDatabase();
-    const transaction = db.transaction(storeName, mode);
-    return transaction.objectStore(storeName);
+// Each helper opens its own fresh transaction — no reuse across async boundaries
+function idbTx(storeName, mode, fn) {
+  return new Promise((resolve, reject) => {
+    if (!db) { reject("DB not open"); return; }
+    const tx    = db.transaction(storeName, mode);
+    const store = tx.objectStore(storeName);
+    const req   = fn(store);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = e => reject(e.target.error);
+  });
 }
 
-async function idbDeleteMetadata(key) {
-    const store = await getObjectStore(STORE_METADATA, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.delete(key);
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
+async function idbGetVersions(date) {
+  const result = await idbTx(STORE_VERSIONS, 'readonly', s => s.get(date));
+  return result ? result.versions : [];
 }
 
-async function idbGetVersions(workDate) {
-    const store = await getObjectStore(STORE_VERSIONS, 'readonly');
-    return new Promise((resolve, reject) => {
-        const request = store.get(workDate);
-        request.onsuccess = () => resolve(request.result ? request.result.versions : []);
-        request.onerror = (event) => reject(event.target.error);
-    });
+async function idbSaveVersions(date, versions) {
+  await idbTx(STORE_VERSIONS, 'readwrite', s => s.put({ workDate: date, versions }));
 }
 
-async function idbSaveVersions(workDate, versions) {
-    const store = await getObjectStore(STORE_VERSIONS, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.put({ workDate, versions });
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
+async function idbDeleteVersionDate(dateKey) {
+  await idbTx(STORE_VERSIONS, 'readwrite', s => s.delete(dateKey));
 }
 
-async function idbGetCurrentVersion(workDate) {
-    const store = await getObjectStore(STORE_METADATA, 'readonly');
-    return new Promise((resolve, reject) => {
-        const request = store.get('current_version_' + workDate);
-        request.onsuccess = () => resolve(request.result ? request.result.value : 1);
-        request.onerror = (event) => reject(event.target.error);
-    });
+async function idbGetAllVersionKeys() {
+  return await idbTx(STORE_VERSIONS, 'readonly', s => s.getAllKeys());
 }
 
-async function idbSaveCurrentVersion(workDate, version) {
-    const store = await getObjectStore(STORE_METADATA, 'readwrite');
-    return new Promise((resolve, reject) => {
-        const request = store.put({ key: 'current_version_' + workDate, value: version });
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
-    });
+async function idbGetMeta(key) {
+  const result = await idbTx(STORE_METADATA, 'readonly', s => s.get(key));
+  return result ? result.value : null;
 }
+
+async function idbSetMeta(key, value) {
+  await idbTx(STORE_METADATA, 'readwrite', s => s.put({ key, value }));
+}
+
+async function idbDelMeta(key) {
+  await idbTx(STORE_METADATA, 'readwrite', s => s.delete(key));
+}
+
+async function idbGetAllMetaKeys() {
+  return await idbTx(STORE_METADATA, 'readonly', s => s.getAllKeys());
+}
+
+// ===================== State =====================
+const DATA_KEYS = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
+
+let currentData       = [];
+let uploadVersion     = 1;
+let scanMode          = "";
+let html5Qr           = null;
+let scannerBusy       = false;
+let lastReceivedIndex = null;
+let remarkTimeout;
+let dropdownActiveIndex = -1;
+let activeFilter        = 'all';  // 'all' | 'psent' | 'precvd'
 
 // ===================== Helpers =====================
 function sanitizeId(id) {
-    return String(id || "").replace(/[^a-zA-Z0-9-_]/g, '_');
+  return String(id || "").replace(/[^a-zA-Z0-9-_]/g, '_');
 }
 
 function generateSearchableText(record) {
-    const keys = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
-    return keys.map(k => record[k] || "").join(' ').toLowerCase();
-    // FIX 4 side-effect: searchableText itself is NOT included, so generateSearchableText won't recurse
+  return DATA_KEYS.map(k => record[k] || "").join(' ').toLowerCase();
 }
 
-// ===================== Speaker =====================
-function speak(msg) {
-    let speech = new SpeechSynthesisUtterance(msg);
-    speech.lang = "en-IN";
-    speech.rate = 1;
-    speechSynthesis.speak(speech);
-}
-
-function speakNextDate(dateStr) {
-    if (!dateStr) return;
-    let d = new Date(dateStr);
-    let day = d.getDate();
-    let month = d.toLocaleString("en-IN", { month: "long" });
-    speak("Next date " + day + " " + month);
-}
-
-// ===================== BUG 1 FIX: Storage — actual MB dikhao =====================
-async function updateStorageUsage() {
-    try {
-        if (navigator.storage && navigator.storage.estimate) {
-            const estimate = await navigator.storage.estimate();
-            const usedMB = (estimate.usage / (1024 * 1024)).toFixed(2);
-            const totalMB = (estimate.quota / (1024 * 1024)).toFixed(0);
-            const pct = ((estimate.usage / estimate.quota) * 100).toFixed(1);
-            storageUsage.innerText = usedMB + "MB / " + totalMB + "MB (" + pct + "%)";
-        } else {
-            storageUsage.innerText = "IndexedDB";
-        }
-    } catch(e) {
-        storageUsage.innerText = "IndexedDB";
-    }
-}
-
-// ===================== BUG 5 FIX: Delete Old Data — STORE_VERSIONS bhi clean karo =====================
-async function deleteOldData() {
-    let today = new Date();
-    let deletedCount = 0;
-
-    try {
-        // 1. STORE_METADATA se purani data entries delete karo
-        const metaStore = await getObjectStore(STORE_METADATA, 'readwrite');
-        const metaKeys = await new Promise((resolve, reject) => {
-            const req = metaStore.getAllKeys();
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = (e) => reject(e.target.error);
-        });
-
-        for (const key of metaKeys) {
-            if (!key.startsWith('current_version_')) {
-                // key format: "2025-01-01_1"
-                let datePart = key.substring(0, 10);
-                let fileDate = new Date(datePart);
-                if (!isNaN(fileDate)) {
-                    let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
-                    if (diff > 30) {
-                        await idbDeleteMetadata(key);
-                        deletedCount++;
-                    }
-                }
-            }
-        }
-
-        // 2. STORE_VERSIONS se purani date entries delete karo
-        const verStore = await getObjectStore(STORE_VERSIONS, 'readwrite');
-        const allDates = await new Promise((resolve, reject) => {
-            const req = verStore.getAllKeys();
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = (e) => reject(e.target.error);
-        });
-
-        for (const dateKey of allDates) {
-            let fileDate = new Date(dateKey);
-            if (!isNaN(fileDate)) {
-                let diff = (today - fileDate) / (1000 * 60 * 60 * 24);
-                if (diff > 30) {
-                    await new Promise((resolve, reject) => {
-                        const req = verStore.delete(dateKey);
-                        req.onsuccess = () => resolve();
-                        req.onerror = (e) => reject(e.target.error);
-                    });
-                }
-            }
-        }
-
-        alert(deletedCount + " old records deleted.");
-        updateStorageUsage();
-    } catch (error) {
-        console.error("Error deleting old data:", error);
-        alert("Failed to delete old data.");
-    }
-}
-
-// ===================== Firebase =====================
-const firebaseConfig = {
-    apiKey: "AIzaSyCOeaQ3R9hTqVqpBDw9v3RNWE-P7rYQg64",
-    authDomain: "court-file-system.firebaseapp.com",
-    projectId: "court-file-system"
-};
-
-firebase.initializeApp(firebaseConfig);
-const dbCloud = firebase.firestore();
-
-let currentData = [];
-let uploadVersion = 1;
-let scanMode = "";
-let html5Qr = null;
-let lastReceivedIndex = null;
-let unsubscribe = null;
-let lastScanCode = "";
-let lastScanTime = 0;
-
-async function dataKey() { return workDate.value + "_" + uploadVersion; }
-
-// ===================== Filter =====================
-function getFilteredData() {
-    let q = searchBox.value.toLowerCase();
-    return q
-        ? currentData.filter(r => r.searchableText && r.searchableText.includes(q))
-        : currentData;
+function dataKey() {
+  return workDate.value + "_" + uploadVersion;
 }
 
 // ===================== Init =====================
 window.onload = async () => {
-    try {
-        await openDatabase();
-        let savedDate = localStorage.getItem('lastWorkDate');
-        let today = new Date().toISOString().split("T")[0];
-        workDate.value = savedDate || today;
-
-        await loadVersions();
-        await loadCurrentVersion();
-        await loadLocal();
-        loadFirebase();
-        updateStorageUsage();
-    } catch (e) {
-        console.error("Initialization error:", e);
-    }
-};
-
-// ===================== Dashboard =====================
-function updateDashboard() {
-    totalCount.innerText = currentData.length;
-    sentCount.innerText = currentData.filter(x => x.sent === "Sent").length;
-    receivedCount.innerText = currentData.filter(x => x.received === "Received").length;
-}
-
-// ===================== Version =====================
-
-// BUG 2 FIX: saveVersions ab 2 params leta hai — (date, arr)
-async function saveVersions(date, arr) {
-    await idbSaveVersions(date, arr);
-}
-
-async function loadVersions() {
-    versionSelect.innerHTML = "";
-    const versions = await idbGetVersions(workDate.value);
-    if (versions.length === 0) {
-        let opt = document.createElement("option");
-        opt.value = "1";
-        opt.text = "Upload 1";
-        versionSelect.appendChild(opt);
-        return;
-    }
-    versions.forEach(v => {
-        let opt = document.createElement("option");
-        opt.value = v;
-        opt.text = "Upload " + v;
-        versionSelect.appendChild(opt);
-    });
-}
-
-async function saveCurrentVersion() {
-    await idbSaveCurrentVersion(workDate.value, uploadVersion);
-}
-
-async function loadCurrentVersion() {
-    const v = await idbGetCurrentVersion(workDate.value);
-    uploadVersion = parseInt(v);
-    versionSelect.value = uploadVersion;
-}
-
-// ===================== Local Save/Load =====================
-async function saveLocal() {
-    try {
-        const key = await dataKey();
-        const store = await getObjectStore(STORE_METADATA, 'readwrite');
-        await new Promise((resolve, reject) => {
-            const request = store.put({ key: key, value: currentData });
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject(event.target.error);
-        });
-        updateStorageUsage();
-    } catch (e) {
-        console.error("Error saving to IndexedDB:", e);
-    }
-}
-
-async function loadLocal() {
-    try {
-        const key = await dataKey();
-        const store = await getObjectStore(STORE_METADATA, 'readonly');
-        const request = store.get(key);
-        await new Promise((resolve, reject) => {
-            request.onsuccess = () => {
-                if (request.result && request.result.value) {
-                    currentData = request.result.value;
-                    currentData.forEach(r => r.searchableText = generateSearchableText(r));
-                } else {
-                    currentData = [];
-                }
-                drawTable(getFilteredData());
-                updateDashboard();
-                resolve();
-            };
-            request.onerror = (event) => reject(event.target.error);
-        });
-    } catch (e) {
-        console.error("Error loading from IndexedDB:", e);
-        currentData = [];
-        drawTable([]);
-        updateDashboard();
-    }
-}
-
-// ===================== Firebase Sync =====================
-async function syncFirebase() {
-    let id = workDate.value + "_" + uploadVersion;
-    try {
-        await dbCloud.collection("courtfiles").doc(id).set({ data: currentData }, { merge: true });
-    } catch (error) {
-        console.error("Error syncing to Firebase:", error);
-    }
-}
-
-// BUG 3 FIX: onSnapshot se remark input wipe na ho
-function loadFirebase() {
-    let id = workDate.value + "_" + uploadVersion;
-    if (unsubscribe) unsubscribe();
-    try {
-        unsubscribe = dbCloud.collection("courtfiles").doc(id)
-            .onSnapshot(doc => {
-                if (doc.exists) {
-                    // Active remark input ka caseno aur value bachao
-                    let activeEl = document.activeElement;
-                    let activeCaseNo = null;
-                    let activeValue = null;
-                    if (activeEl && activeEl.dataset && activeEl.dataset.caseno) {
-                        activeCaseNo = activeEl.dataset.caseno;
-                        activeValue = activeEl.value;
-                    }
-
-                    let incoming = doc.data().data || [];
-                    incoming.forEach(r => {
-                        r.searchableText = generateSearchableText(r);
-                        // Agar user isi record ka remark type kar raha hai to overwrite mat karo
-                        if (activeCaseNo && r.caseno === activeCaseNo) {
-                            r.remark = activeValue;
-                        }
-                    });
-                    currentData = incoming;
-
-                    drawTable(getFilteredData());
-                    updateDashboard();
-                    saveLocal();
-
-                    // Focus aur cursor position restore karo
-                    if (activeCaseNo) {
-                        setTimeout(() => {
-                            let inp = document.querySelector(`input[data-caseno="${CSS.escape(activeCaseNo)}"]`);
-                            if (inp) {
-                                inp.focus();
-                                inp.value = activeValue;
-                                inp.setSelectionRange(activeValue.length, activeValue.length);
-                            }
-                        }, 30);
-                    }
-                }
-            }, error => {
-                console.error("Firebase error:", error);
-            });
-    } catch (error) {
-        console.error("Firebase setup error:", error);
-    }
-}
-
-// ===================== Date / Version Change =====================
-workDate.addEventListener("change", async () => {
-    localStorage.setItem('lastWorkDate', workDate.value);
+  try {
+    await openDatabase();
+    // Always open on today's date
+    workDate.value = new Date().toISOString().split("T")[0];
     await loadVersions();
     await loadCurrentVersion();
     await loadLocal();
-    loadFirebase();
+    updateStorageUsage();
+  } catch(e) {
+    console.error("Init error:", e);
+  }
+};
+
+// ===================== Speech =====================
+function speak(msg) {
+  const s = new SpeechSynthesisUtterance(msg);
+  s.lang = "en-IN";
+  s.rate = 1;
+  speechSynthesis.speak(s);
+}
+
+function speakNextDate(dateStr) {
+  if (!dateStr) return;
+  const d     = new Date(dateStr);
+  const day   = d.getUTCDate();
+  const month = d.toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" });
+  speak("Next date " + day + " " + month);
+}
+
+// ===================== Storage Display =====================
+async function updateStorageUsage() {
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const est    = await navigator.storage.estimate();
+      const usedMB = (est.usage  / 1048576).toFixed(2);
+      const totMB  = (est.quota  / 1048576).toFixed(0);
+      const pct    = ((est.usage / est.quota) * 100).toFixed(1);
+      storageUsage.innerText = usedMB + "MB / " + totMB + "MB (" + pct + "%)";
+    } else {
+      storageUsage.innerText = "IndexedDB";
+    }
+  } catch(e) {
+    storageUsage.innerText = "IndexedDB";
+  }
+}
+
+// ===================== Date Format Helper =====================
+// yyyy-mm-dd  →  dd-mm-yyyy  (display only; storage stays ISO)
+function fmtDate(iso) {
+  if (!iso) return "";
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  return parts[2] + "-" + parts[1] + "-" + parts[0];
+}
+
+// ===================== Dashboard =====================
+function updateDashboard() {
+  const total     = currentData.length;
+  const sent      = currentData.filter(x => x.sent     === "Sent").length;
+  const received  = currentData.filter(x => x.received === "Received").length;
+  const pSent     = currentData.filter(x => x.sent     !== "Sent").length;
+  const pRecvd    = currentData.filter(x => x.sent === "Sent" && x.received !== "Received").length;
+
+  totalCount.innerText    = total;
+  sentCount.innerText     = sent;
+  receivedCount.innerText = received;
+
+  // Filter tab counts
+  document.getElementById("tabAllCount").innerText    = total;
+  document.getElementById("tabPSentCount").innerText  = pSent;
+  document.getElementById("tabPRecvdCount").innerText = pRecvd;
+}
+
+// ===================== Filter Tabs =====================
+function setFilter(f) {
+  activeFilter = f;
+
+  // Update tab active styles
+  const tabs = { all: 'active-all', psent: 'active-psent', precvd: 'active-precvd' };
+  ['all','psent','precvd'].forEach(key => {
+    const el = document.getElementById("tab-" + key);
+    el.className = "filter-tab" + (key === f ? " " + tabs[key] : "");
+  });
+
+  // Clear search when switching filter
+  searchBox.value = "";
+  drawTable(getFilteredData());
+}
+
+// ===================== Versions =====================
+async function loadVersions() {
+  versionSelect.innerHTML = "";
+  const versions = await idbGetVersions(workDate.value);
+  if (!versions || versions.length === 0) {
+    versionSelect.innerHTML = '<option value="1">Upload 1</option>';
+    return;
+  }
+  versions.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.text  = "Upload " + v;
+    versionSelect.appendChild(opt);
+  });
+}
+
+async function saveCurrentVersion() {
+  await idbSetMeta('current_version_' + workDate.value, uploadVersion);
+}
+
+async function loadCurrentVersion() {
+  const v       = await idbGetMeta('current_version_' + workDate.value);
+  uploadVersion = parseInt(v) || 1;
+  versionSelect.value = uploadVersion;
+}
+
+// ===================== Local Save / Load =====================
+async function saveLocal() {
+  try {
+    await idbSetMeta(dataKey(), currentData);
+    // Note: updateStorageUsage() intentionally NOT called here —
+    // calling it on every save (including remark keystrokes) adds unnecessary overhead.
+    // It is called explicitly after upload and delete operations only.
+  } catch(e) {
+    console.error("Save error:", e);
+  }
+}
+
+async function loadLocal() {
+  try {
+    const saved = await idbGetMeta(dataKey());
+    if (saved && Array.isArray(saved)) {
+      currentData = saved;
+      currentData.forEach(r => r.searchableText = generateSearchableText(r));
+    } else {
+      currentData = [];
+    }
+  } catch(e) {
+    console.error("Load error:", e);
+    currentData = [];
+  }
+  drawTable(getFilteredData());
+  updateDashboard();
+}
+
+// ===================== Date / Version Events =====================
+workDate.addEventListener("change", async () => {
+  await loadVersions();
+  await loadCurrentVersion();
+  await loadLocal();
 });
 
 versionSelect.addEventListener("change", async () => {
-    uploadVersion = parseInt(versionSelect.value);
-    await saveCurrentVersion();
-    await loadLocal();
-    loadFirebase();
+  uploadVersion = parseInt(versionSelect.value);
+  await saveCurrentVersion();
+  await loadLocal();
 });
 
 // ===================== Excel Upload =====================
 async function uploadExcel() {
-    let file = excelFile.files[0];
-    if (!file) { alert("Select Excel"); return; }
+  const file = excelFile.files[0];
+  if (!file) { alert("Excel file select karo"); return; }
 
-    try {
-        let versions = await idbGetVersions(workDate.value);
-        uploadVersion = versions.length + 1;
+  try {
+    const versions = await idbGetVersions(workDate.value);
+    uploadVersion  = (versions && versions.length > 0 ? versions.length : 0) + 1;
 
-        let reader = new FileReader();
-        reader.onload = async e => {
-            try {
-                let data = e.target.result;
-                let wb = XLSX.read(data, { type: "binary" });
-                let sheetName = wb.SheetNames[0];
-                let rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "" });
+    const reader   = new FileReader();
+    reader.onerror = () => alert("File read error.");
+    reader.onload  = async e => {
+      try {
+        const wb    = XLSX.read(e.target.result, { type: "binary" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        let rows    = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-                if (rows.length > 0) rows.shift(); // Remove header
+        if (rows.length > 0) rows.shift(); // remove header row
 
-                currentData = rows.map(r => {
-                    const record = {
-                        srno: r[0] || "",
-                        caseno: String(r[1] || "").trim(),
-                        partyname: r[2] || "",
-                        section: r[3] || "",
-                        ps: r[4] || "",
-                        sent: "",
-                        received: "",
-                        receiveddate: "",
-                        nextdate: "",
-                        remark: ""
-                    };
-                    record.searchableText = generateSearchableText(record);
-                    return record;
-                }).filter(r => r.caseno !== "");
+        currentData = rows
+          .map(r => {
+            const rec = {
+              srno:         r[0] || "",
+              caseno:       String(r[1] || "").trim(),
+              partyname:    r[2] || "",
+              section:      r[3] || "",
+              ps:           r[4] || "",
+              sent:         "",
+              received:     "",
+              receiveddate: "",
+              nextdate:     "",
+              remark:       ""
+            };
+            rec.searchableText = generateSearchableText(rec);
+            return rec;
+          })
+          .filter(r => r.caseno !== "");
 
-                let opt = document.createElement("option");
-                opt.value = uploadVersion;
-                opt.text = "Upload " + uploadVersion;
-                versionSelect.appendChild(opt);
-                versionSelect.value = uploadVersion;
+        // Add version option to dropdown
+        const opt = document.createElement("option");
+        opt.value = uploadVersion;
+        opt.text  = "Upload " + uploadVersion;
+        versionSelect.appendChild(opt);
+        versionSelect.value = uploadVersion;
 
-                versions.push(uploadVersion);
-                // BUG 2 FIX: ab 2 sahi params pass ho rahe hain
-                await saveVersions(workDate.value, versions);
-                await saveCurrentVersion();
+        const newVersions = versions ? [...versions, uploadVersion] : [uploadVersion];
+        await idbSaveVersions(workDate.value, newVersions);
+        await saveCurrentVersion();
+        await saveLocal();
 
-                drawTable(getFilteredData());
-                updateDashboard();
-                await saveLocal();
-                syncFirebase();
+        drawTable(getFilteredData());
+        updateDashboard();
+        speak("Excel uploaded");
+        alert("Excel upload ho gaya! (" + currentData.length + " records)");
+        excelFile.value = "";
+      } catch(err) {
+        console.error("Excel error:", err);
+        alert("Excel process karne mein error: " + err.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+  } catch(err) {
+    console.error("Upload error:", err);
+    alert("Upload fail hua.");
+  }
+}
 
-                speak("Excel uploaded");
-                alert("Excel uploaded successfully!");
-                excelFile.value = "";
-            } catch (err) {
-                console.error("Excel processing error:", err);
-                alert("Error processing Excel file.");
-            }
-        };
-        reader.onerror = () => alert("Error reading file.");
-        reader.readAsBinaryString(file);
-    } catch (err) {
-        console.error("Upload error:", err);
-        alert("Upload failed.");
-    }
+// ===================== Filter =====================
+function getFilteredData() {
+  const q = searchBox.value.trim().toLowerCase();
+
+  let data = currentData;
+
+  // Apply active tab filter first
+  if (activeFilter === 'psent') {
+    data = data.filter(r => r.sent !== "Sent");
+  } else if (activeFilter === 'precvd') {
+    data = data.filter(r => r.sent === "Sent" && r.received !== "Received");
+  }
+
+  // Then apply search on top
+  if (q) {
+    data = data.filter(r => r.searchableText && r.searchableText.includes(q));
+  }
+
+  return data;
 }
 
 // ===================== Scanner =====================
-function scanSent() { scanMode = "SENT"; startScanner(); }
+function scanSent()     { scanMode = "SENT";     startScanner(); }
 function scanReceived() { scanMode = "RECEIVED"; startScanner(); }
 
 async function startScanner() {
-    scannerWrap.style.display = "block";
-    html5Qr = new Html5Qrcode("video");
-    try {
-        let devices = await Html5Qrcode.getCameras();
-        if (devices.length === 0) {
-            alert("No camera found.");
-            stopScanner();
-            return;
-        }
-        let cam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[devices.length - 1];
-        html5Qr.start(
-            cam.id,
-            { fps: 10, qrbox: 250 },
-            (text) => handleScan(text.trim())
-        );
-    } catch (error) {
-        console.error("Scanner error:", error);
-        stopScanner();
+  scannerBusy = false; // reset for new scan session
+  scanLabel.textContent = scanMode === "SENT"
+    ? "📤 Scanning for SENT..."
+    : "📥 Scanning for RECEIVED...";
+  scannerWrap.style.display = "block";
+
+  html5Qr = new Html5Qrcode("video");
+  try {
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || !devices.length) {
+      alert("Camera nahi mila.");
+      stopScanner();
+      return;
     }
+    // Prefer back camera on mobile
+    const cam = devices.find(d => d.label.toLowerCase().includes("back"))
+             || devices[devices.length - 1];
+
+    await html5Qr.start(
+      cam.id,
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      text => handleScan(text.trim())
+    );
+  } catch(err) {
+    console.error("Scanner start error:", err);
+    alert("Camera start nahi hua: " + err);
+    stopScanner();
+  }
 }
 
 function stopScanner() {
-    if (html5Qr) {
-        html5Qr.stop().then(() => html5Qr.clear()).catch(e => console.error(e));
-        html5Qr = null;
-    }
-    scannerWrap.style.display = "none";
+  if (html5Qr) {
+    html5Qr.stop()
+      .then(() => html5Qr.clear())
+      .catch(e => console.warn("Scanner stop warning:", e));
+    html5Qr = null;
+  }
+  scannerBusy = false;
+  scannerWrap.style.display = "none";
 }
 
 async function handleScan(code) {
-    let now = Date.now();
-    if (code === lastScanCode && now - lastScanTime < 1500) return;
-    lastScanCode = code;
-    lastScanTime = now;
+  // ── One-scan-per-open: ignore all callbacks after first successful entry ──
+  if (scannerBusy) return;
 
-    let idx = currentData.findIndex(r => r.caseno === code);
-    if (idx === -1) { alert("File Not Found"); speak("File not found"); return; }
+  if (!code) return;
 
-    if (scanMode === "SENT") {
-        if (currentData[idx].sent === "Sent") { alert("Already Sent"); speak("Already sent"); return; }
-        currentData[idx].sent = "Sent";
-        alert("Sent");
-        speak("File sent");
+  const idx = currentData.findIndex(r => r.caseno === code);
+
+  if (idx === -1) {
+    scannerBusy = true;          // lock scanner even on error so it stops
+    stopScanner();
+    alert("❌ File Not Found: " + code);
+    speak("File not found");
+    return;
+  }
+
+  if (scanMode === "SENT") {
+    if (currentData[idx].sent === "Sent") {
+      scannerBusy = true;
+      stopScanner();
+      alert("ℹ️ Already Sent: " + code);
+      speak("Already sent");
+      return;
     }
+    scannerBusy = true;          // lock — stop accepting more scans
+    stopScanner();               // close scanner immediately
+    currentData[idx].sent = "Sent";
+    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+    speak("File sent");
+    alert("✅ SENT: " + code);
+  }
 
-    if (scanMode === "RECEIVED") {
-        if (currentData[idx].sent !== "Sent") { alert("File Not Sent Yet"); speak("File not sent yet"); return; }
-        if (currentData[idx].received === "Received") { alert("Already Received"); speak("Already received"); return; }
-        currentData[idx].received = "Received";
-        currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
-        lastReceivedIndex = idx;
-        alert("Received");
-        speak("File received");
-        nextDatePopup.style.display = "block";
+  else if (scanMode === "RECEIVED") {
+    if (currentData[idx].sent !== "Sent") {
+      scannerBusy = true;
+      stopScanner();
+      alert("❌ File abhi SENT nahi hua: " + code + "\nPehle SEND karo.");
+      speak("File not sent yet");
+      return;
     }
+    if (currentData[idx].received === "Received") {
+      scannerBusy = true;
+      stopScanner();
+      alert("ℹ️ Already Received: " + code);
+      speak("Already received");
+      return;
+    }
+    scannerBusy = true;          // lock
+    stopScanner();               // close scanner immediately
+    currentData[idx].received     = "Received";
+    currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
+    lastReceivedIndex             = idx;
+    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+    speak("File received");
+    alert("✅ RECEIVED: " + code);
+    nextDatePopup.style.display = "block";
+  }
 
-    drawTable(getFilteredData());
-    scrollToFile(code);
-    updateDashboard();
-    await saveLocal();
-    syncFirebase();
+  searchBox.value = "";
+  drawTable(getFilteredData());
+  scrollToFile(code);
+  updateDashboard();
+  await saveLocal();
 }
 
-// ===================== Scroll =====================
+// ===================== Scroll & Highlight =====================
 function scrollToFile(caseno) {
-    let sanitizedCaseno = sanitizeId(caseno);
-    let row = document.getElementById("row_" + sanitizedCaseno);
-    if (!row) return;
-    row.scrollIntoView({ behavior: "smooth", block: "center" });
-    row.classList.add("highlight");
-    setTimeout(() => { row.classList.remove("highlight"); }, 3000);
+  const row = document.getElementById("row_" + sanitizeId(caseno));
+  if (!row) return;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.classList.add("highlight");
+  setTimeout(() => row.classList.remove("highlight"), 4000);
 }
 
-// ===================== Next Date =====================
+// ===================== Next Date Popup =====================
 async function saveNextDate() {
-    if (lastReceivedIndex === null) return;
-    let selectedDate = nextDateInput.value;
-    if (!selectedDate) { alert("Please select a date"); return; }
-    currentData[lastReceivedIndex].nextdate = selectedDate;
-    nextDateInput.value = '';
-    nextDatePopup.style.display = "none";
-    lastReceivedIndex = null;
-    drawTable(getFilteredData());
-    speakNextDate(selectedDate);
-    await saveLocal();
-    syncFirebase();
+  if (lastReceivedIndex === null) return;
+  const selectedDate = nextDateInput.value;
+  if (!selectedDate) { alert("Date select karo"); return; }
+  currentData[lastReceivedIndex].nextdate = selectedDate;
+  currentData[lastReceivedIndex].searchableText = generateSearchableText(currentData[lastReceivedIndex]);
+  nextDateInput.value         = "";
+  nextDatePopup.style.display = "none";
+  lastReceivedIndex           = null;
+  drawTable(getFilteredData());
+  speakNextDate(selectedDate);
+  await saveLocal();
 }
 
 function closePopup() {
-    nextDatePopup.style.display = "none";
-    lastReceivedIndex = null;
+  nextDatePopup.style.display = "none";
+  lastReceivedIndex = null;
 }
 
-// ===================== Remark =====================
-let remarkTimeout;
+// ===================== Remark (debounced) =====================
 async function updateRemark(caseNo, val) {
-    clearTimeout(remarkTimeout);
-    remarkTimeout = setTimeout(async () => {
-        let idx = currentData.findIndex(r => r.caseno === caseNo);
-        if (idx !== -1) {
-            currentData[idx].remark = val;
-            currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-            await saveLocal();
-            syncFirebase();
-        }
-    }, 400);
+  clearTimeout(remarkTimeout);
+  remarkTimeout = setTimeout(async () => {
+    const idx = currentData.findIndex(r => r.caseno === caseNo);
+    if (idx !== -1) {
+      currentData[idx].remark         = val;
+      currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+      await saveLocal();
+    }
+  }, 400);
 }
 
 // ===================== Table =====================
 function drawTable(data) {
-    if (!data || !data.length) { table.innerHTML = ""; return; }
-    let headers = ["srno", "caseno", "partyname", "section", "ps", "sent", "received", "receiveddate", "nextdate", "remark"];
-    let html = "<tr>" + headers.map(x => "<th>" + x + "</th>").join("") + "</tr>";
-    data.forEach(r => {
-        let sanitizedCaseno = sanitizeId(r.caseno);
-        let row = `<tr id="row_${sanitizedCaseno}">`;
-        headers.forEach(k => {
-            if (k === "remark") {
-                // BUG 3 FIX: data-caseno attribute add kiya — Firebase focus restore ke liye
-                let escapedCaseno = String(r.caseno).replace(/"/g, '&quot;').replace(/'/g, "\\'");
-                row += `<td><input data-caseno="${String(r.caseno).replace(/"/g,'&quot;')}" value="${(r[k] || "").replace(/"/g,'&quot;')}" oninput="updateRemark('${escapedCaseno}',this.value)"></td>`;
-            } else {
-                row += `<td>${r[k] || ""}</td>`;
-            }
-        });
-        row += "</tr>";
-        html += row;
+  if (!data || !data.length) { table.innerHTML = ""; return; }
+
+  const HEADERS = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
+  const LABELS  = ["Sr.No","Case No","Party Name","Section","PS","Sent","Received","Recv. Date","Next Date","Remark"];
+
+  let html = "<tr>" + LABELS.map(x => "<th>" + x + "</th>").join("") + "</tr>";
+
+  data.forEach(r => {
+    let row = '<tr id="row_' + sanitizeId(r.caseno) + '">';
+    HEADERS.forEach(k => {
+      if (k === "remark") {
+        const casenoAttr = String(r.caseno).replace(/"/g, '&quot;');
+        const casenoJs   = String(r.caseno).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const valAttr    = String(r[k] || "").replace(/"/g, '&quot;');
+        row += '<td><input data-caseno="' + casenoAttr
+             + '" value="' + valAttr
+             + '" oninput="updateRemark(\'' + casenoJs + '\',this.value)"'
+             + ' placeholder="Add remark..."></td>';
+      } else if (k === "receiveddate" || k === "nextdate") {
+        // Display as dd-mm-yyyy; stored as yyyy-mm-dd
+        row += '<td>' + fmtDate(r[k]) + '</td>';
+      } else if (k === "sent" && r.sent === "Sent") {
+        row += '<td style="background:#fff3cd">' + (r[k] || "") + '</td>';
+      } else if (k === "received" && r.received === "Received") {
+        row += '<td style="background:#c8e6c9">' + (r[k] || "") + '</td>';
+      } else {
+        row += '<td>' + (r[k] || "") + '</td>';
+      }
     });
-    table.innerHTML = html;
+    row += "</tr>";
+    html += row;
+  });
+
+  table.innerHTML = html;
+
+  // O(1) lookup via Map instead of O(n²) find() inside forEach
+  setTimeout(() => {
+    const active     = document.activeElement;
+    const activeCase = (active && active.dataset && active.dataset.caseno)
+                       ? active.dataset.caseno : null;
+    const cursorPos  = activeCase ? active.selectionStart : null;
+
+    // Build a quick lookup map once — O(n) instead of O(n²)
+    const remarkMap = new Map(currentData.map(r => [r.caseno, r.remark || ""]));
+
+    document.querySelectorAll('input[data-caseno]').forEach(input => {
+      const remark = remarkMap.get(input.dataset.caseno);
+      if (remark === undefined) return;
+      if (activeCase && input.dataset.caseno === activeCase) {
+        if (input.value !== remark) input.value = remark;
+        if (cursorPos != null) {
+          try { input.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
+        }
+        input.focus();
+      } else {
+        input.value = remark;
+      }
+    });
+  }, 0);
 }
 
-// ===================== Search =====================
+// ===================== Search (debounced 150ms) =====================
+let searchDebounce;
 searchBox.addEventListener("input", () => {
-    drawTable(getFilteredData());
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => drawTable(getFilteredData()), 150);
 });
 
-// ===================== BUG 4 FIX: Download — searchableText column nahi aayega =====================
-function downloadExcel() {
-    const exportData = currentData.map(r => ({
-        srno: r.srno,
-        caseno: r.caseno,
-        partyname: r.partyname,
-        section: r.section,
-        ps: r.ps,
-        sent: r.sent,
-        received: r.received,
-        receiveddate: r.receiveddate,
-        nextdate: r.nextdate,
-        remark: r.remark
-    }));
-    let ws = XLSX.utils.json_to_sheet(exportData);
-    let wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Court Data");
-    XLSX.writeFile(wb, "Court_" + workDate.value + ".xlsx");
+// ===================== Manual Entry =====================
+function showManualStatus(msg, type) {
+  const el = document.getElementById("manualStatus");
+  el.textContent = msg;
+  el.className   = "manual-status " + type;
+  clearTimeout(el._timer);
+  if (type === "success") {
+    el._timer = setTimeout(() => { el.className = "manual-status"; }, 3000);
+  }
 }
 
+function onManualInput() {
+  const val = manualCaseInput.value.trim().toLowerCase();
+  dropdownActiveIndex = -1;
+  if (!val || !currentData.length) { closeCaseDropdown(); return; }
+
+  const matches = currentData.filter(r =>
+    String(r.caseno).toLowerCase().includes(val) ||
+    String(r.partyname).toLowerCase().includes(val)
+  ).slice(0, 20);
+
+  if (!matches.length) { closeCaseDropdown(); return; }
+
+  const dd = document.getElementById("caseDropdown");
+  dd.innerHTML = matches.map(r => {
+    const cn      = String(r.caseno).replace(/"/g, '&quot;');
+    const cnJs    = String(r.caseno).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const party   = (r.partyname || "") + (r.section ? " | " + r.section : "");
+    return `<div class="drop-item" data-caseno="${cn}" onmousedown="selectDropItem('${cnJs}')">
+              <span class="drop-caseno">${r.caseno}</span>
+              <span class="drop-party">${party}</span>
+            </div>`;
+  }).join("");
+  dd.style.display = "block";
+}
+
+function onManualKeyDown(e) {
+  const dd    = document.getElementById("caseDropdown");
+  const items = dd.querySelectorAll(".drop-item");
+  if (!items.length) return;
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    dropdownActiveIndex = Math.min(dropdownActiveIndex + 1, items.length - 1);
+    updateDropHighlight(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    dropdownActiveIndex = Math.max(dropdownActiveIndex - 1, 0);
+    updateDropHighlight(items);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (dropdownActiveIndex >= 0 && items[dropdownActiveIndex]) {
+      selectDropItem(items[dropdownActiveIndex].dataset.caseno);
+    }
+  } else if (e.key === "Escape") {
+    closeCaseDropdown();
+  }
+}
+
+function updateDropHighlight(items) {
+  items.forEach((el, i) => {
+    el.classList.toggle("active", i === dropdownActiveIndex);
+    if (i === dropdownActiveIndex) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function selectDropItem(caseno) {
+  manualCaseInput.value = caseno;
+  closeCaseDropdown();
+  document.getElementById("manualStatus").className = "manual-status";
+}
+
+function closeCaseDropdown() {
+  document.getElementById("caseDropdown").style.display = "none";
+  dropdownActiveIndex = -1;
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".case-dropdown-wrap")) closeCaseDropdown();
+});
+
+async function manualAction(mode) {
+  const caseNo = manualCaseInput.value.trim();
+  if (!caseNo) { showManualStatus("⚠️ Pehle Case No enter karo.", "error"); return; }
+  if (!currentData.length) { showManualStatus("⚠️ Koi data nahi. Pehle Excel upload karo.", "error"); return; }
+
+  const idx = currentData.findIndex(r => String(r.caseno).trim() === caseNo);
+  if (idx === -1) {
+    showManualStatus("❌ Case Not Found: " + caseNo, "error");
+    speak("Case not found");
+    return;
+  }
+
+  const rec = currentData[idx];
+
+  if (mode === "SENT") {
+    if (rec.sent === "Sent") {
+      showManualStatus("ℹ️ Yeh file pehle se SENT hai: " + caseNo, "info");
+      speak("Already sent");
+      return;
+    }
+    currentData[idx].sent = "Sent";
+    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+    showManualStatus("✅ SENT ho gaya: " + caseNo, "success");
+    speak("File sent");
+    manualCaseInput.value = "";
+
+  } else if (mode === "RECEIVED") {
+    if (rec.sent !== "Sent") {
+      showManualStatus("❌ Yeh file abhi SENT nahi hua. Pehle SEND karo.", "error");
+      speak("File not sent yet");
+      return;
+    }
+    if (rec.received === "Received") {
+      showManualStatus("ℹ️ Yeh file pehle se RECEIVED hai: " + caseNo, "info");
+      speak("Already received");
+      return;
+    }
+    currentData[idx].received     = "Received";
+    currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
+    lastReceivedIndex             = idx;
+    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
+    showManualStatus("✅ RECEIVED ho gaya: " + caseNo, "success");
+    speak("File received");
+    manualCaseInput.value = "";
+    nextDatePopup.style.display = "block";
+  }
+
+  drawTable(getFilteredData());
+  scrollToFile(caseNo);
+  updateDashboard();
+  await saveLocal();
+}
+
+// ===================== Download Excel =====================
+function downloadExcel() {
+  if (!currentData.length) { alert("Data nahi hai download karne ke liye."); return; }
+  const exportData = currentData.map(r => ({
+    "Sr.No":      r.srno,
+    "Case No":    r.caseno,
+    "Party Name": r.partyname,
+    "Section":    r.section,
+    "PS":         r.ps,
+    "Sent":       r.sent,
+    "Received":   r.received,
+    "Recv. Date": r.receiveddate,
+    "Next Date":  r.nextdate,
+    "Remark":     r.remark
+  }));
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Court Data");
+  XLSX.writeFile(wb, "Court_" + workDate.value + "_v" + uploadVersion + ".xlsx");
+}
+
+// ===================== Delete Old Data =====================
+async function deleteOldData() {
+  if (!confirm("60 din se purana data delete karein?")) return;
+
+  const today = new Date();
+  let count   = 0;
+
+  try {
+    // 1. Get all metadata keys, delete old ones (each in its own transaction)
+    const metaKeys = await idbGetAllMetaKeys();
+    for (const key of metaKeys) {
+      if (key.startsWith('current_version_')) continue;
+      const datePart = key.substring(0, 10);
+      const fileDate = new Date(datePart);
+      if (!isNaN(fileDate) && (today - fileDate) / 86400000 > 60) {
+        await idbDelMeta(key);
+        count++;
+      }
+    }
+
+    // 2. Get all version date keys, delete old ones
+    const allDates = await idbGetAllVersionKeys();
+    for (const dateKey of allDates) {
+      const fileDate = new Date(dateKey);
+      if (!isNaN(fileDate) && (today - fileDate) / 86400000 > 60) {
+        await idbDeleteVersionDate(dateKey);
+      }
+    }
+
+    alert(count + " purane records delete ho gaye.");
+    updateStorageUsage();
+  } catch(err) {
+    console.error("Delete error:", err);
+    alert("Delete fail hua.");
+  }
+}
+
+// ===================== Backup — Export =====================
+async function exportBackup() {
+  const statusEl = document.getElementById("backupStatus");
+  try {
+    // Collect all version records
+    const allVersionKeys = await idbGetAllVersionKeys();
+    const versionsData   = {};
+    for (const dateKey of allVersionKeys) {
+      const result = await idbTx(STORE_VERSIONS, 'readonly', s => s.get(dateKey));
+      if (result) versionsData[dateKey] = result.versions;
+    }
+
+    // Collect all metadata records (skip nothing — includes data + current_version keys)
+    const allMetaKeys = await idbGetAllMetaKeys();
+    const metaData    = {};
+    for (const key of allMetaKeys) {
+      const val = await idbGetMeta(key);
+      if (val !== null) metaData[key] = val;
+    }
+
+    const backup = {
+      exportedAt:   new Date().toISOString(),
+      appVersion:   "1.0",
+      versionsStore: versionsData,
+      metadataStore: metaData
+    };
+
+    const json     = JSON.stringify(backup, null, 2);
+    const blob     = new Blob([json], { type: "application/json" });
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement("a");
+    const dateStr  = new Date().toISOString().split("T")[0];
+    a.href         = url;
+    a.download     = "CourtFileManager_Backup_" + dateStr + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    statusEl.textContent = "✅ Backup export ho gaya!";
+    statusEl.className   = "manual-status success";
+    clearTimeout(statusEl._timer);
+    statusEl._timer = setTimeout(() => { statusEl.className = "manual-status"; }, 3000);
+
+  } catch(err) {
+    console.error("Export error:", err);
+    statusEl.textContent = "❌ Export fail hua: " + err;
+    statusEl.className   = "manual-status error";
+  }
+}
+
+// ===================== Backup — Import / Restore =====================
+async function importBackup(event) {
+  const statusEl = document.getElementById("backupStatus");
+  const file     = event.target.files[0];
+  event.target.value = ""; // reset so same file can be picked again
+  if (!file) return;
+
+  if (!confirm("⚠️ Restore karne se SAARA existing data replace ho jaayega.\nKya aap sure hain?")) return;
+
+  const reader      = new FileReader();
+  reader.onerror    = () => {
+    statusEl.textContent = "❌ File read error.";
+    statusEl.className   = "manual-status error";
+  };
+  reader.onload = async e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+
+      // Basic validation
+      if (!backup.versionsStore || !backup.metadataStore) {
+        statusEl.textContent = "❌ Invalid backup file.";
+        statusEl.className   = "manual-status error";
+        return;
+      }
+
+      // ── Restore versions store ──
+      for (const [dateKey, versions] of Object.entries(backup.versionsStore)) {
+        await idbTx(STORE_VERSIONS, 'readwrite', s => s.put({ workDate: dateKey, versions }));
+      }
+
+      // ── Restore metadata store ──
+      for (const [key, value] of Object.entries(backup.metadataStore)) {
+        await idbSetMeta(key, value);
+      }
+
+      statusEl.textContent = "✅ Restore ho gaya! App reload ho rahi hai...";
+      statusEl.className   = "manual-status success";
+
+      // Reload app to reflect restored data
+      setTimeout(() => location.reload(), 1500);
+
+    } catch(err) {
+      console.error("Import error:", err);
+      statusEl.textContent = "❌ Restore fail hua: " + err.message;
+      statusEl.className   = "manual-status error";
+    }
+  };
+  reader.readAsText(file);
+}
 </script>
 </body>
 </html>
