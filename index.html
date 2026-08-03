@@ -1,1455 +1,530 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
-<meta charset="UTF-8">
-<title>Court File Manager</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>नत्थी — फाइल स्क्रूटनी</title>
 <style>
-/* ===================== Variables ===================== */
-:root {
-  --primary:       #4f46e5;
-  --primary-hover: #4338ca;
-  --bg-color:      #f8fafc;
-  --surface:       #ffffff;
-  --text-main:     #1e293b;
-  --text-muted:    #64748b;
-  --border:        #e2e8f0;
-  --danger:        #ef4444;
-  --danger-hover:  #dc2626;
-  --success:       #10b981;
-  --success-hover: #059669;
-  --amber:         #f59e0b;
-  --amber-hover:   #d97706;
-  --radius-lg:     16px;
-  --radius-md:     12px;
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.1);
-  --shadow-md:     0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-}
-
-/* ===================== Base ===================== */
-body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  margin: 0; padding: 0;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ===================== Header ===================== */
-.app-header {
-  background: var(--primary);
-  color: white;
-  padding: 16px 20px;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 700;
-  box-shadow: var(--shadow-md);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  letter-spacing: 0.5px;
-}
-
-/* ===================== Layout ===================== */
-.container {
-  padding: 16px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.section {
-  background: var(--surface);
-  padding: 20px;
-  margin-bottom: 16px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-}
-
-h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
-  font-size: 16px;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ===================== Inputs ===================== */
-input, select {
-  width: 100%;
-  padding: 14px 16px;
-  margin-top: 6px;
-  font-size: 15px;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--border);
-  box-sizing: border-box;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  appearance: none;
-}
-
-input:focus, select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
-  background-color: var(--surface);
-}
-
-input[type="file"] {
-  padding: 10px;
-  background: var(--surface);
-}
-
-/* ===================== Buttons ===================== */
-button {
-  width: 100%;
-  padding: 14px 16px;
-  margin-top: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  border: none;
-  cursor: pointer;
-  background: var(--primary);
-  color: white;
-  box-shadow: var(--shadow-md);
-  transition: transform 0.1s, background-color 0.2s;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-}
-
-button:active { transform: scale(0.98); }
-
-/* Default hover — only for primary buttons */
-button:not(.btn-danger):not(.btn-success):not(.btn-amber):not(.btn-grey):hover {
-  background: var(--primary-hover);
-}
-
-.btn-danger          { background: var(--danger); }
-.btn-danger:hover    { background: var(--danger-hover); }
-
-.btn-success         { background: var(--success); }
-.btn-success:hover   { background: var(--success-hover); }
-
-.btn-amber           { background: var(--amber); }
-.btn-amber:hover     { background: var(--amber-hover); }
-
-.btn-grey            { background: #94a3b8; }
-.btn-grey:hover      { background: #64748b; }
-
-/* ===================== Dashboard ===================== */
-.dashboard {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-@media (min-width: 600px) {
-  .dashboard { grid-template-columns: repeat(4, 1fr); }
-}
-
-.card {
-  background: var(--surface);
-  padding: 16px 10px;
-  border-radius: var(--radius-lg);
-  text-align: center;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-muted);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.card span {
-  font-size: 22px;
-  color: var(--primary);
-  font-weight: 700;
-}
-
-/* ===================== Table ===================== */
-.table-wrap {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  overflow-x: auto;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-  margin-bottom: 16px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 900px;
-  text-align: left;
-}
-
-th, td {
-  border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
-  font-size: 14px;
-}
-
-th {
-  background: #f1f5f9;
-  font-weight: 600;
-  color: var(--text-main);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-td input {
-  width: 100%;
-  border: 1px solid transparent;
-  padding: 8px;
-  margin: 0;
-  font-size: 14px;
-  background: transparent;
-  border-radius: 6px;
-}
-
-td input:focus {
-  background: var(--surface);
-  border: 1px solid var(--primary);
-}
-
-tr:last-child td { border-bottom: none; }
-tr:hover         { background-color: #f8fafc; }
-
-/* ===================== Scanner Overlay ===================== */
-#scannerWrap {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(5px);
-  display: none;
-  z-index: 999;
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-#video {
-  width: 100%;
-  height: 70vh;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: #000;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-
-#scannerWrap .scan-label {
-  color: white;
-  text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  letter-spacing: 0.5px;
-}
-
-#scannerWrap button {
-  margin-top: 20px;
-  font-size: 16px;
-}
-
-/* ===================== Next Date Popup ===================== */
-#nextDatePopup {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px);
-  display: none;
-  z-index: 1000;
-}
-
-#popupBox {
-  background: var(--surface);
-  margin: 30vh auto;
-  padding: 24px;
-  width: 90%;
-  max-width: 400px;
-  border-radius: var(--radius-lg);
-  box-sizing: border-box;
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-  animation: slideUp 0.3s ease-out;
-}
-
-#popupBox h3    { font-size: 17px; margin-bottom: 14px; }
-#popupBox input { margin-top: 0; }
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ===================== Highlight / Pulse ===================== */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
-}
-
-.highlight {
-  background: #fef08a !important;
-  animation: pulse 1s 3;
-}
-
-/* ===================== Floating Scan Buttons ===================== */
-.floating-scan {
-  position: fixed;
-  bottom: 20px;
-  right: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 998;
-}
-
-.floating-scan button {
-  width: 155px;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.25);
-  margin-top: 0;
-}
-
-/* ===================== Manual Entry ===================== */
-.manual-action-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.manual-action-grid button { margin-top: 0; }
-
-.case-dropdown-wrap { position: relative; }
-
-#caseDropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
-  background: var(--surface);
-  border: 1.5px solid var(--primary);
-  border-radius: var(--radius-md);
-  max-height: 220px;
-  overflow-y: auto;
-  z-index: 500;
-  box-shadow: var(--shadow-md);
-  display: none;
-}
-
-#caseDropdown .drop-item {
-  padding: 11px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-#caseDropdown .drop-item:last-child { border-bottom: none; }
-
-#caseDropdown .drop-item:hover,
-#caseDropdown .drop-item.active {
-  background: #ede9fe;
-}
-
-#caseDropdown .drop-item .drop-caseno {
-  font-weight: 700;
-  color: var(--primary);
-  font-size: 15px;
-}
-
-#caseDropdown .drop-item .drop-party {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.manual-status {
-  margin-top: 10px;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 600;
-  display: none;
-}
-
-.manual-status.success {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
-  display: block;
-}
-
-.manual-status.error {
-  background: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #fca5a5;
-  display: block;
-}
-
-.manual-status.info {
-  background: #ede9fe;
-  color: var(--primary);
-  border: 1px solid #c4b5fd;
-  display: block;
-}
-
-/* ===================== Filter Tabs ===================== */
-.filter-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.filter-tab {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 10px;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--border);
-  background: var(--bg-color);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s;
-  box-shadow: none;
-  margin-top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  line-height: 1.3;
-}
-
-.filter-tab .tab-count {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.filter-tab:hover { background: #f1f5f9; border-color: #94a3b8; color: var(--text-main); }
-
-.filter-tab.active-all      { background: #ede9fe; border-color: var(--primary);  color: var(--primary); }
-.filter-tab.active-psent    { background: #fff7ed; border-color: var(--amber);    color: var(--amber-hover); }
-.filter-tab.active-precvd   { background: #f0fdf4; border-color: var(--success);  color: var(--success-hover); }
-
-/* ===================== Backup Section ===================== */
-.backup-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.backup-grid button { margin-top: 0; }
-
-.btn-purple       { background: #7c3aed; }
-.btn-purple:hover { background: #6d28d9; }
-
-.btn-purple-outline {
-  background: transparent;
-  border: 2px solid #7c3aed;
-  color: #7c3aed;
-  box-shadow: none;
-}
-.btn-purple-outline:hover {
-  background: #ede9fe;
-  color: #6d28d9;
-}
+:root{--paper:#EDF0F3;--card:#fff;--ink:#132238;--ink-2:#4A5C72;--line:#D3DAE2;
+  --seal:#A32C2C;--ok:#1B7A4C;--na:#8A93A0;--warn:#B4761A;--r:10px;
+  --sh:0 1px 2px rgba(19,34,56,.07),0 6px 16px rgba(19,34,56,.05)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Devanagari",system-ui,sans-serif;
+  font-size:15px;line-height:1.45;padding-bottom:96px;overflow-x:hidden}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+header{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;display:flex;align-items:center;gap:9px}
+.seal{width:30px;height:30px;border-radius:50%;border:2px solid var(--seal);display:grid;place-items:center;
+  font-size:13px;font-weight:700;background:rgba(163,44,44,.5);flex:0 0 auto}
+header h1{font-size:16px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header small{display:block;font-size:10.5px;font-weight:400;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw}
+header .htxt{min-width:0}
+header .sp{margin-left:auto;display:flex;gap:6px;flex:0 0 auto}
+.hbtn{background:rgba(255,255,255,.13);border:0;color:#fff;padding:9px 12px;border-radius:8px;font-size:13px}
+.hbtn:active{background:rgba(255,255,255,.28)}
+.wrap{padding:12px;max-width:820px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:10px;overflow:hidden}
+.card-pad{padding:12px}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+label.f{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin:0 0 3px}
+input[type=text],input[type=date],textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:15px}
+textarea{resize:vertical;min-height:46px}
+input:focus,textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+.mb8{margin-bottom:8px}
+.caseitem{display:block;width:100%;text-align:left;border:0;background:transparent;padding:0}
+.cno{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.ctype{font-size:11px;background:var(--paper);border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--ink-2)}
+.parties{font-size:13px;color:var(--ink-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:5px;background:var(--paper);border-radius:99px;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px}
+.meta{display:flex;gap:10px;font-size:11px;color:var(--ink-2);margin-top:6px;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.item{border-top:1px solid var(--line)}.item:first-child{border-top:0}
+.ihead{display:flex;align-items:center;gap:9px;padding:11px 12px;background:#fff;width:100%;border:0;text-align:left}
+.ihead:active{background:#F4F7FA}
+.dot{width:22px;height:22px;border-radius:6px;flex:0 0 auto;display:grid;place-items:center;font-size:13px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--na)}
+.dot.yes{background:var(--ok);border-color:var(--ok);color:#fff}
+.dot.no{background:var(--seal);border-color:var(--seal);color:#fff}
+.dot.na{background:var(--na);border-color:var(--na);color:#fff}
+.iname{flex:1;min-width:0;font-size:14.5px;font-weight:600}
+.isub{font-size:11px;color:var(--ink-2);font-weight:400}
+.pin{font-size:11px;color:var(--ink-2);flex:0 0 auto}
+.ibody{padding:0 12px 12px;background:#FBFCFD;border-top:1px dashed var(--line)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{flex:1;border:0;background:#fff;padding:10px 4px;font-size:13.5px;font-weight:600;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on[data-v=yes]{background:var(--ok);color:#fff}
+.seg button.on[data-v=no]{background:var(--seal);color:#fff}
+.seg button.on[data-v=na]{background:var(--na);color:#fff}
+.seg.natseg button.on{background:var(--ink);color:#fff}
+.shots{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.shot{width:70px;height:70px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--paper);position:relative;padding:0}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot b{position:absolute;inset:auto 0 0 0;background:rgba(19,34,56,.7);color:#fff;font-size:9px;padding:1px 3px;font-weight:500}
+.addshot{width:70px;height:70px;border:1.5px dashed var(--line);border-radius:8px;background:#fff;color:var(--ink-2);font-size:10.5px;display:grid;place-items:center;line-height:1.25;text-align:center}
+.addshot span{font-size:18px;display:block}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:11px 13px;font-size:14px;font-weight:600}
+.btn:active{background:var(--paper)}
+.btn.solid{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.danger{color:var(--seal);border-color:#E9C9C9}
+.fabs{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:35;display:flex;gap:9px;justify-content:center}
+.fab{background:var(--ink);color:#fff;border:0;border-radius:99px;padding:14px 22px;font-size:15px;font-weight:700;box-shadow:0 8px 24px rgba(19,34,56,.3)}
+.fab.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.viewer{position:fixed;inset:0;background:#0B121C;z-index:80;display:none;flex-direction:column}
+.viewer.on{display:flex}
+.viewer .vtop{display:flex;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;color:#fff;align-items:center;font-size:13px}
+.viewer img{flex:1;min-height:0;object-fit:contain;width:100%}
+.viewer .vbot{padding:10px 12px calc(env(safe-area-inset-bottom) + 14px);display:flex;gap:8px;justify-content:center}
+.scan{position:fixed;inset:0;background:#000;z-index:85;display:none;flex-direction:column}
+.scan.on{display:flex}
+.scan video{flex:1;min-height:0;width:100%;object-fit:cover}
+.scan .frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66vw;max-width:300px;aspect-ratio:1;
+  border:2px solid rgba(255,255,255,.85);border-radius:16px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+.scan .stop{padding:12px 12px calc(env(safe-area-inset-bottom) + 14px);display:flex;gap:8px;justify-content:center;background:#000;z-index:2}
+.scan .msg{color:#fff;text-align:center;font-size:13px;padding:calc(env(safe-area-inset-top) + 10px) 16px 4px;z-index:2}
+.modal{position:fixed;inset:0;background:rgba(11,18,28,.5);z-index:95;display:none;align-items:flex-end;justify-content:center}
+.modal.on{display:flex}
+.sheet{background:#fff;width:100%;max-width:480px;border-radius:14px 14px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px)}
+.sheet h3{font-size:16px;margin-bottom:6px}.sheet p{margin:0 0 12px;color:var(--ink-2);font-size:14px}
+.empty{text-align:center;color:var(--ink-2);padding:44px 18px;font-size:14px}
+.empty b{display:block;font-size:16px;color:var(--ink);margin-bottom:4px}
+.eyebrow{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:16px 2px 7px;font-weight:600}
+.toast{position:fixed;bottom:98px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:99px;font-size:13px;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.hide{display:none!important}
+.printhead{display:none}
+@media print{header,.fabs,.noprint{display:none!important}
+  body{background:#fff;padding:0;font-size:12px}
+  .card{box-shadow:none;page-break-inside:avoid;border-color:#999}
+  .printhead{display:block;text-align:center;padding:10px 0 4px;border-bottom:2px solid #000;margin-bottom:10px}}
 </style>
 </head>
 <body>
+<header>
+  <div class="seal">न</div>
+  <div class="htxt"><h1 id="hTitle">नत्थी</h1><small id="hSub">फाइल स्क्रूटनी</small></div>
+  <div class="sp"><button class="hbtn" id="btnBack" style="display:none">‹</button><button class="hbtn" id="btnSet">⚙</button></div>
+</header>
+<div class="printhead" id="printHead"></div>
+<div class="wrap" id="app"></div>
+<div class="fabs" id="fabs"><button class="fab alt" id="fabScan">QR स्कैन</button><button class="fab" id="fab">+ नई फाइल</button></div>
 
-<div class="app-header">⚖️ Court File Manager</div>
-
-<div class="container">
-
-  <!-- Date & Version -->
-  <div class="section">
-    <h3>📅 Working Date &amp; Version</h3>
-    <input type="date" id="workDate">
-    <select id="versionSelect"></select>
-  </div>
-
-  <!-- Dashboard -->
-  <div class="dashboard">
-    <div class="card">📁 Total<br><span id="totalCount">0</span></div>
-    <div class="card">📤 Sent<br><span id="sentCount">0</span></div>
-    <div class="card">📥 Received<br><span id="receivedCount">0</span></div>
-    <div class="card">💾 Storage<br><span id="storageUsage" style="font-size:13px;margin-top:4px;">...</span></div>
-  </div>
-
-  <!-- Excel Upload -->
-  <div class="section">
-    <h3>📥 Excel Upload</h3>
-    <input type="file" id="excelFile" accept=".xlsx,.xls">
-    <button onclick="uploadExcel()">📤 Upload Excel File</button>
-  </div>
-
-  <!-- Search + Filter -->
-  <div class="section">
-    <h3>🔍 Search &amp; Filter</h3>
-    <input type="text" id="searchBox" placeholder="Search by Case No, Party Name...">
-    <div class="filter-tabs">
-      <button class="filter-tab active-all" id="tab-all"    onclick="setFilter('all')">
-        🗂️ All<br><span class="tab-count" id="tabAllCount">0</span>
-      </button>
-      <button class="filter-tab" id="tab-psent"  onclick="setFilter('psent')">
-        ⏳ Pending Sent<br><span class="tab-count" id="tabPSentCount">0</span>
-      </button>
-      <button class="filter-tab" id="tab-precvd" onclick="setFilter('precvd')">
-        🕐 Pending Recv.<br><span class="tab-count" id="tabPRecvdCount">0</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Manual Entry -->
-  <div class="section">
-    <h3>✍️ Manual Entry</h3>
-    <div class="case-dropdown-wrap">
-      <input
-        type="text"
-        id="manualCaseInput"
-        placeholder="Case No likhein ya list se chunein..."
-        autocomplete="off"
-        oninput="onManualInput()"
-        onkeydown="onManualKeyDown(event)"
-      >
-      <div id="caseDropdown"></div>
-    </div>
-    <div class="manual-action-grid">
-      <button class="btn-amber"   onclick="manualAction('SENT')">📤 Mark SENT</button>
-      <button class="btn-success" onclick="manualAction('RECEIVED')">📥 Mark RECEIVED</button>
-    </div>
-    <div id="manualStatus" class="manual-status"></div>
-  </div>
-
-  <!-- Download -->
-  <div class="section" style="padding:12px;">
-    <button class="btn-success" onclick="downloadExcel()" style="margin-top:0;">📊 Download Excel Report</button>
-  </div>
-
-  <!-- Table -->
-  <div class="table-wrap">
-    <table id="table"></table>
-  </div>
-
-  <!-- Backup & Restore -->
-  <div class="section" style="border-color:#7c3aed; background:#faf5ff;">
-    <h3 style="color:#7c3aed;">🗄️ Backup &amp; Restore</h3>
-    <p style="margin:0 0 12px; font-size:13px; color:var(--text-muted);">
-      Poora data (saari dates, saare versions) ek JSON file mein export karo. Wahi file se wapas restore bhi kar sakte ho.
-    </p>
-    <div class="backup-grid">
-      <button class="btn-purple" onclick="exportBackup()">⬇️ Export Backup</button>
-      <button class="btn-purple-outline" onclick="document.getElementById('restoreFile').click()">⬆️ Restore Backup</button>
-    </div>
-    <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="importBackup(event)">
-    <div id="backupStatus" class="manual-status"></div>
-  </div>
-
-  <!-- Danger Zone -->
-  <div class="section" style="border-color:var(--danger); background:#fef2f2;">
-    <h3 style="color:var(--danger);">⚠️ Danger Zone</h3>
-    <button class="btn-danger" onclick="deleteOldData()">🧹 Delete Data Older Than 60 Days</button>
-  </div>
-
-</div><!-- /container -->
-
-<!-- Floating Scan Buttons -->
-<div class="floating-scan">
-  <button class="btn-amber"   onclick="scanSent()">📤 Scan SENT</button>
-  <button class="btn-success" onclick="scanReceived()">📥 Scan RECEIVED</button>
+<div class="viewer" id="viewer">
+  <div class="vtop"><button class="hbtn" id="vClose">✕</button><span id="vLabel"></span><span style="margin-left:auto" id="vCount"></span></div>
+  <img id="vImg" alt="">
+  <div class="vbot"><button class="btn" id="vPrev">‹</button><button class="btn danger" id="vDel">फोटो हटाएँ</button><button class="btn" id="vNext">›</button></div>
 </div>
 
-<!-- Scanner Overlay -->
-<div id="scannerWrap">
-  <div class="scan-label" id="scanLabel">📷 Scanning...</div>
-  <div id="video"></div>
-  <button class="btn-danger" onclick="stopScanner()">❌ Close Scanner</button>
+<div class="scan" id="scan">
+  <div class="msg" id="scanMsg">फाइल के लेबल का QR कैमरे के सामने रखें</div>
+  <video id="scanVid" playsinline muted></video><div class="frame"></div>
+  <div class="stop"><button class="btn" id="scanClose">बंद करें</button><button class="btn" id="scanManual">कोड टाइप करें</button></div>
 </div>
 
-<!-- Next Date Popup -->
-<div id="nextDatePopup">
-  <div id="popupBox">
-    <h3>📅 Next Hearing Date</h3>
-    <input type="date" id="nextDateInput">
-    <button onclick="saveNextDate()">✅ Save Date</button>
-    <button class="btn-grey" onclick="closePopup()" style="margin-top:8px;">❌ Skip</button>
-  </div>
-</div>
+<div class="modal" id="modal"><div class="sheet">
+  <h3 id="mTitle"></h3><p id="mMsg" class="hide"></p>
+  <input type="text" id="mInput" class="hide mb8">
+  <div class="row"><button class="btn" id="mNo">रद्द</button><button class="btn solid" id="mYes">ठीक</button></div>
+</div></div>
+
+<input type="file" id="picker" accept="image/*" capture="environment" multiple class="hide">
+<input type="file" id="pickerGal" accept="image/*" multiple class="hide">
+<input type="file" id="restorePick" accept="application/json" class="hide">
+<div class="toast" id="toast"></div>
 
 <script>
-// ===================== IndexedDB Setup =====================
-const DB_NAME        = 'CourtFileManagerDB';
-const DB_VERSION     = 1;
-const STORE_VERSIONS = 'versions';
-const STORE_METADATA = 'metadata';
+/* ===== settings ===== */
+const S={get(){try{return JSON.parse(localStorage.getItem('natthi_set'))||{}}catch(e){return{}}},
+  set(o){localStorage.setItem('natthi_set',JSON.stringify(o))}};
+let SET=Object.assign({court:'',officer:'',defNat:'अ'},S.get());
 
-let db;
+/* ===== db (v2: alag halka index store) ===== */
+const DB_NAME='court_scrutiny',DB_VER=2;let db;
+function openDB(){return new Promise((res,rej)=>{
+  const r=indexedDB.open(DB_NAME,DB_VER);
+  r.onupgradeneeded=e=>{const d=e.target.result;
+    if(!d.objectStoreNames.contains('files')){const s=d.createObjectStore('files',{keyPath:'id'});s.createIndex('updatedAt','updatedAt')}
+    if(!d.objectStoreNames.contains('photos')){const p=d.createObjectStore('photos',{keyPath:'id'});
+      p.createIndex('fileId','fileId');p.createIndex('fileItem',['fileId','itemKey'])}
+    if(!d.objectStoreNames.contains('idx')){const x=d.createObjectStore('idx',{keyPath:'id'});
+      x.createIndex('updatedAt','updatedAt');x.createIndex('qr','qr');x.createIndex('caseNo','caseNo')}};
+  r.onsuccess=()=>{db=r.result;res(db)};r.onerror=()=>rej(r.error)})}
+const tx=(s,m='readonly')=>db.transaction(s,m).objectStore(s);
+const req=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    if (db) return resolve(db);
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE_VERSIONS))
-        d.createObjectStore(STORE_VERSIONS, { keyPath: 'workDate' });
-      if (!d.objectStoreNames.contains(STORE_METADATA))
-        d.createObjectStore(STORE_METADATA, { keyPath: 'key' });
-    };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror   = e => reject("IndexedDB error: " + e.target.errorCode);
-  });
+const DEFAULT_ITEMS=[
+ ['order','आदेश पत्र','Order Sheet','अ'],['fir','एफ.आई.आर.','FIR','ब'],['tehreer','तहरीर','','ब'],
+ ['chargesheet','आरोप पत्र','Charge Sheet','ब'],['fard','फर्द बरामदगी / नक्शा नजरी','','ब'],
+ ['medical','मेडिकल रिपोर्ट','','ब'],['pm','पोस्टमार्टम रिपोर्ट','','ब'],['s161','161 बयान','','ब'],
+ ['s164','164 बयान','','ब'],['pw','अभियोजन साक्षी बयान','PW','अ'],['dw','बचाव साक्षी बयान','DW','अ'],
+ ['s313','313 बयान','','अ'],['bail','जमानत प्रपत्र','Bail Papers','अ'],['process','सम्मन / वारंट तामीला','','अ'],
+ ['exhibit','प्रदर्श सूची','Exhibits','अ'],['other','अन्य कागज़','Others','']];
+const newItems=()=>DEFAULT_ITEMS.map(([k,n,s,nat])=>({key:k,name:n,sub:s,nat,status:'',pages:'',note:''}));
+const blankFile=()=>({id:uid(),caseNo:'',caseType:'',year:new Date().getFullYear(),parties:'',ps:'',us:'',qr:'',
+  recvDate:new Date().toISOString().slice(0,10),totalPages:'',remark:'',items:newItems(),
+  court:SET.court,createdAt:Date.now(),updatedAt:Date.now()});
+
+const done=f=>f.items.filter(i=>i.status).length;
+const idxOf=f=>({id:f.id,caseNo:f.caseNo||'',caseType:f.caseType||'',year:f.year||'',parties:f.parties||'',
+  ps:f.ps||'',us:f.us||'',qr:f.qr||'',d:done(f),t:f.items.length,updatedAt:f.updatedAt,
+  sk:[f.caseNo,f.parties,f.ps,f.us,f.caseType,f.year,f.qr].join(' ').toLowerCase()});
+
+function saveFile(f){f.updatedAt=Date.now();
+  return new Promise((res,rej)=>{const t=db.transaction(['files','idx'],'readwrite');
+    t.objectStore('files').put(f);t.objectStore('idx').put(idxOf(f));
+    t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+const getFile=id=>req(tx('files').get(id));
+function delFile(id){return new Promise(async(res,rej)=>{
+  const ks=await req(tx('photos').index('fileId').getAllKeys(IDBKeyRange.only(id)));
+  const t=db.transaction(['files','idx','photos'],'readwrite');
+  ks.forEach(k=>t.objectStore('photos').delete(k));
+  t.objectStore('files').delete(id);t.objectStore('idx').delete(id);
+  t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+
+/* page ke hisaab se hi records padho — 3000 files par bhi list turant khulti hai */
+function pageIdx(beforeKey,n=30){return new Promise((res,rej)=>{
+  const out=[],range=beforeKey!=null?IDBKeyRange.upperBound(beforeKey,true):null;
+  const r=tx('idx').index('updatedAt').openCursor(range,'prev');
+  r.onsuccess=e=>{const c=e.target.result;
+    if(!c||out.length>=n)return res(out);
+    out.push(c.value);c.continue()};
+  r.onerror=()=>rej(r.error)})}
+function searchIdx(q,limit=60){return new Promise((res,rej)=>{
+  const out=[],r=tx('idx').index('updatedAt').openCursor(null,'prev');
+  r.onsuccess=e=>{const c=e.target.result;
+    if(!c||out.length>=limit)return res(out);
+    if(c.value.sk.includes(q))out.push(c.value);c.continue()};
+  r.onerror=()=>rej(r.error)})}
+async function findByCode(code){
+  const q=code.trim();if(!q)return null;
+  let hit=await req(tx('idx').index('qr').get(q));if(hit)return hit;
+  hit=await req(tx('idx').index('caseNo').get(q));if(hit)return hit;
+  const s=await searchIdx(q.toLowerCase(),1);return s[0]||null}
+
+const photoKeys=(f,k)=>req(tx('photos').index('fileItem').getAllKeys(IDBKeyRange.only([f,k])));
+async function photoCounts(fileId){
+  const m={};return new Promise(res=>{
+    const r=tx('photos').index('fileId').openCursor(IDBKeyRange.only(fileId));
+    r.onsuccess=e=>{const c=e.target.result;if(!c)return res(m);
+      m[c.value.itemKey]=(m[c.value.itemKey]||0)+1;c.continue()};r.onerror=()=>res(m)})}
+const getPhoto=id=>req(tx('photos').get(id));
+const putPhoto=p=>req(tx('photos','readwrite').put(p));
+const delPhoto=id=>req(tx('photos','readwrite').delete(id));
+
+async function shrink(file){
+  let bmp;
+  try{bmp=await createImageBitmap(file)}catch(e){
+    bmp=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file)})}
+  const W=bmp.width||bmp.naturalWidth,H=bmp.height||bmp.naturalHeight;
+  const draw=(max,q)=>{const sc=Math.min(1,max/Math.max(W,H));const c=document.createElement('canvas');
+    c.width=Math.round(W*sc);c.height=Math.round(H*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+    return new Promise(r=>c.toBlob(r,'image/jpeg',q))};
+  const full=await draw(1400,.6),thumb=await draw(180,.55);
+  bmp.close&&bmp.close();return{full,thumb}}
+
+/* ===== ui ===== */
+const $=s=>document.querySelector(s),app=$('#app');
+let tT;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),2000)};
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ask({title,msg,input,value,ok='ठीक',danger}){
+  return new Promise(res=>{
+    $('#mTitle').textContent=title;const m=$('#mMsg');m.textContent=msg||'';m.classList.toggle('hide',!msg);
+    const i=$('#mInput');i.classList.toggle('hide',!input);i.value=value||'';i.placeholder=typeof input==='string'?input:'';
+    const y=$('#mYes');y.textContent=ok;y.classList.toggle('danger',!!danger);y.classList.toggle('solid',!danger);
+    $('#modal').classList.add('on');if(input)setTimeout(()=>i.focus(),120);
+    const close=v=>{$('#modal').classList.remove('on');y.onclick=$('#mNo').onclick=i.onkeydown=null;res(v)};
+    y.onclick=()=>close(input?(i.value.trim()||null):true);$('#mNo').onclick=()=>close(null);
+    i.onkeydown=e=>{if(e.key==='Enter')y.click()}})}
+$('#modal').onclick=e=>{if(e.target.id==='modal')$('#mNo').click()};
+
+let view='list',cur=null;
+const setHead=(t,s,back)=>{$('#hTitle').textContent=t;$('#hSub').textContent=s;$('#btnBack').style.display=back?'':'none'};
+const rowHTML=x=>`<div class="card"><div class="card-pad"><button class="caseitem" data-id="${x.id}">
+  <div class="top"><span class="cno">${esc(x.caseNo)||'—'}</span>
+    ${x.caseType?`<span class="ctype">${esc(x.caseType)}</span>`:''}${x.year?`<span class="ctype">${esc(x.year)}</span>`:''}</div>
+  <div class="parties">${esc(x.parties)||'पक्षकार दर्ज नहीं'}</div>
+  <div class="bar"><i style="width:${Math.round(x.d/(x.t||1)*100)}%;background:${x.d===x.t?'var(--ok)':'var(--warn)'}"></i></div>
+  <div class="meta"><span>${x.d}/${x.t} कागज़ जाँचे</span>${x.ps?`<span>थाना ${esc(x.ps)}</span>`:''}${x.qr?`<span>QR ${esc(x.qr)}</span>`:''}</div>
+</button></div></div>`;
+
+/* ---------- list (paged) ---------- */
+let lastKey=null,loading=false,ended=false,io=null;
+async function renderList(){
+  view='list';cur=null;
+  setHead('नत्थी',SET.court||'फाइल स्क्रूटनी',false);
+  $('#fabs').classList.remove('hide');$('#printHead').innerHTML='';
+  const total=await req(tx('idx').count());
+  if(!total){app.innerHTML=`<div class="empty"><b>अभी कोई फाइल दर्ज नहीं</b>
+    चार्ज लेते समय हर पत्रावली यहाँ जोड़ें — मुकदमा संख्या भरें, कागज़ात टिक करें, ज़रूरी पन्ने की फोटो खींच लें।</div>`;return}
+  app.innerHTML=`<div class="eyebrow">${total} फाइल</div>
+    <input type="text" id="q" placeholder="मुकदमा संख्या / पक्षकार / थाना खोजें" class="mb8">
+    <div id="rows"></div><div id="sent" style="height:40px"></div>`;
+  lastKey=null;ended=false;loading=false;
+  const rows=$('#rows');
+  rows.onclick=e=>{const b=e.target.closest('.caseitem');if(b)openCase(b.dataset.id)};
+  await more();
+  io&&io.disconnect();
+  io=new IntersectionObserver(es=>{if(es[0].isIntersecting)more()},{rootMargin:'300px'});
+  io.observe($('#sent'));
+  let t;$('#q').oninput=e=>{clearTimeout(t);const v=e.target.value.trim().toLowerCase();
+    t=setTimeout(async()=>{
+      if(!v){ended=false;lastKey=null;rows.innerHTML='';io.observe($('#sent'));return more()}
+      io.disconnect();ended=true;
+      const r=await searchIdx(v);
+      rows.innerHTML=r.length?r.map(rowHTML).join(''):'<div class="empty">कोई मेल नहीं मिला</div>'},250)};
+}
+async function more(){
+  if(loading||ended||view!=='list')return;loading=true;
+  const page=await pageIdx(lastKey,30);
+  if(page.length){lastKey=page[page.length-1].updatedAt;
+    $('#rows').insertAdjacentHTML('beforeend',page.map(rowHTML).join(''))}
+  if(page.length<30){ended=true;io&&io.disconnect()}
+  loading=false}
+
+/* ---------- case ---------- */
+async function openCase(id){
+  const f=await getFile(id);if(!f)return renderList();
+  view='case';cur=f;
+  setHead(f.caseNo||'नई फाइल',(f.caseType||'स्क्रूटनी')+(f.year?' / '+f.year:''),true);
+  $('#fabs').classList.add('hide');
+  $('#printHead').innerHTML=`<h2>${esc(SET.court||'न्यायालय')}</h2><div>पत्रावली स्क्रूटनी सूची${SET.officer?' — '+esc(SET.officer):''}</div>`;
+  const counts=await photoCounts(f.id);
+  app.innerHTML=`
+  <div class="card"><div class="card-pad">
+    <div class="row mb8"><div style="flex:2"><label class="f">मुकदमा संख्या</label><input type="text" id="fCaseNo" value="${esc(f.caseNo)}"></div>
+      <div><label class="f">वर्ष</label><input type="text" id="fYear" value="${esc(f.year)}" inputmode="numeric"></div></div>
+    <div class="row mb8"><div><label class="f">प्रकार</label><input type="text" id="fType" value="${esc(f.caseType)}" placeholder="Cr. Case / ST"></div>
+      <div><label class="f">थाना</label><input type="text" id="fPs" value="${esc(f.ps)}"></div></div>
+    <div class="mb8"><label class="f">पक्षकार</label><input type="text" id="fParties" value="${esc(f.parties)}" placeholder="सरकार बनाम …"></div>
+    <div class="row mb8"><div><label class="f">धारा</label><input type="text" id="fUs" value="${esc(f.us)}"></div>
+      <div><label class="f">कुल पृष्ठ</label><input type="text" id="fPages" value="${esc(f.totalPages)}" inputmode="numeric"></div></div>
+    <div class="mb8"><label class="f">प्राप्ति तिथि</label><input type="date" id="fRecv" value="${esc(f.recvDate)}"></div>
+    <label class="f">QR / लेबल कोड</label>
+    <div class="row mb8"><div style="flex:2"><input type="text" id="fQr" value="${esc(f.qr)}" placeholder="फाइल पर चिपके लेबल का कोड"></div>
+      <button class="btn noprint" id="qrLink" style="flex:0 0 auto">स्कैन</button></div>
+    <label class="f">टिप्पणी / कमी</label><textarea id="fRemark">${esc(f.remark)}</textarea>
+  </div></div>
+  <div class="eyebrow">कागज़ात की जाँच <span id="prog"></span></div>
+  <div class="card" id="items"></div>
+  <div class="card noprint"><div class="card-pad">
+    <label class="f">अतिरिक्त कागज़ जोड़ें</label>
+    <div class="row"><div style="flex:2"><input type="text" id="newName" placeholder="जैसे — सी.डी. / प्रदर्श क-1"></div>
+      <button class="btn solid" id="addNamed" style="flex:0 0 auto">जोड़ें</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="addPw">+ PW</button><button class="btn" id="addDw">+ DW</button></div>
+  </div></div>
+  <div class="row noprint" style="margin-bottom:34px">
+    <button class="btn" id="printCase">रिपोर्ट प्रिंट</button><button class="btn danger" id="delCase">फाइल हटाएँ</button></div>`;
+
+  const prog=()=>{$('#prog').textContent='· '+done(f)+'/'+f.items.length};
+  const box=$('#items');
+  box.innerHTML=f.items.map((it,i)=>itemHTML(it,i,counts[it.key]||0)).join('');prog();
+
+  const bind=(sel,key,num)=>{const el=$(sel);el.onchange=async()=>{f[key]=num?el.value.replace(/\D/g,''):el.value;
+    await saveFile(f);if(key==='caseNo')$('#hTitle').textContent=f.caseNo||'नई फाइल'}};
+  bind('#fCaseNo','caseNo');bind('#fYear','year',1);bind('#fType','caseType');bind('#fPs','ps');
+  bind('#fParties','parties');bind('#fUs','us');bind('#fPages','totalPages',1);bind('#fRecv','recvDate');
+  bind('#fRemark','remark');bind('#fQr','qr');
+  $('#qrLink').onclick=()=>startScan(async code=>{f.qr=code;$('#fQr').value=code;await saveFile(f);toast('लेबल जोड़ा: '+code)});
+
+  box.onclick=async e=>{
+    const seg=e.target.closest('.seg button'),add=e.target.closest('.addshot'),
+          shot=e.target.closest('.shot'),rm=e.target.closest('.rmItem'),head=e.target.closest('.ihead');
+    if(seg){const itEl=seg.closest('.item'),i=+itEl.dataset.i;
+      if(seg.parentElement.classList.contains('natseg')){
+        f.items[i].nat=f.items[i].nat===seg.dataset.v?'':seg.dataset.v;await saveFile(f);
+        seg.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===f.items[i].nat));
+        const l=itEl.querySelector('.natLbl');if(l)l.textContent=f.items[i].nat?'नत्थी '+f.items[i].nat:''}
+      else{f.items[i].status=f.items[i].status===seg.dataset.v?'':seg.dataset.v;await saveFile(f);
+        seg.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===f.items[i].status));
+        const d=itEl.querySelector('.dot');d.className='dot '+(f.items[i].status||'');
+        d.textContent={yes:'✓',no:'✕',na:'—'}[f.items[i].status]||'';prog()}return}
+    if(add){pickFor(+add.closest('.item').dataset.i,add.dataset.src);return}
+    if(shot){openViewer(+shot.closest('.item').dataset.i,+shot.dataset.n);return}
+    if(rm){const i=+rm.closest('.item').dataset.i;
+      if(!await ask({title:'पंक्ति हटाएँ?',msg:f.items[i].name+' और इसकी फोटो हट जाएँगी।',ok:'हटाएँ',danger:1}))return;
+      for(const k of await photoKeys(f.id,f.items[i].key))await delPhoto(k);
+      f.items.splice(i,1);await saveFile(f);openCase(f.id);return}
+    if(head){const it=head.closest('.item'),body=it.querySelector('.ibody');
+      const closed=body.classList.toggle('hide');
+      if(closed)freeItem(it); else loadThumbs(it,f.items[+it.dataset.i].key)}};
+  box.onchange=async e=>{const t=e.target;if(!t.matches('[data-fld]'))return;
+    const i=+t.closest('.item').dataset.i;f.items[i][t.dataset.fld]=t.value;await saveFile(f);
+    if(t.dataset.fld==='pages'){const p=t.closest('.item').querySelector('.pgLbl');if(p)p.textContent=t.value?'पृ. '+t.value:''}};
+
+  const addItem=async(name,nat)=>{f.items.push({key:'c'+uid(),name,sub:'',nat:nat||SET.defNat||'',status:'',pages:'',note:''});
+    await saveFile(f);await openCase(f.id);toast(name+' जोड़ा गया');window.scrollTo(0,document.body.scrollHeight)};
+  $('#addNamed').onclick=()=>{const v=$('#newName').value.trim();if(!v)return toast('पहले कागज़ का नाम लिखें');addItem(v)};
+  $('#newName').onkeydown=e=>{if(e.key==='Enter')$('#addNamed').click()};
+  $('#addPw').onclick=()=>addItem('PW-'+(f.items.filter(x=>/^PW-/.test(x.name)).length+1)+' बयान','अ');
+  $('#addDw').onclick=()=>addItem('DW-'+(f.items.filter(x=>/^DW-/.test(x.name)).length+1)+' बयान','अ');
+  $('#printCase').onclick=()=>{document.querySelectorAll('.ibody').forEach(b=>b.classList.remove('hide'));setTimeout(()=>window.print(),120)};
+  $('#delCase').onclick=async()=>{
+    if(!await ask({title:'पूरी फाइल हटाएँ?',msg:(f.caseNo||'यह फाइल')+' और इसकी सभी फोटो स्थायी रूप से हट जाएँगी।',ok:'हटाएँ',danger:1}))return;
+    try{await delFile(f.id);toast('फाइल हटा दी गई');renderList()}catch(err){toast('नहीं हटी: '+err)}};
 }
 
-// Each helper opens its own fresh transaction — no reuse across async boundaries
-function idbTx(storeName, mode, fn) {
-  return new Promise((resolve, reject) => {
-    if (!db) { reject("DB not open"); return; }
-    const tx    = db.transaction(storeName, mode);
-    const store = tx.objectStore(storeName);
-    const req   = fn(store);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-
-async function idbGetVersions(date) {
-  const result = await idbTx(STORE_VERSIONS, 'readonly', s => s.get(date));
-  return result ? result.versions : [];
-}
-
-async function idbSaveVersions(date, versions) {
-  await idbTx(STORE_VERSIONS, 'readwrite', s => s.put({ workDate: date, versions }));
-}
-
-async function idbDeleteVersionDate(dateKey) {
-  await idbTx(STORE_VERSIONS, 'readwrite', s => s.delete(dateKey));
-}
-
-async function idbGetAllVersionKeys() {
-  return await idbTx(STORE_VERSIONS, 'readonly', s => s.getAllKeys());
-}
-
-async function idbGetMeta(key) {
-  const result = await idbTx(STORE_METADATA, 'readonly', s => s.get(key));
-  return result ? result.value : null;
-}
-
-async function idbSetMeta(key, value) {
-  await idbTx(STORE_METADATA, 'readwrite', s => s.put({ key, value }));
-}
-
-async function idbDelMeta(key) {
-  await idbTx(STORE_METADATA, 'readwrite', s => s.delete(key));
-}
-
-async function idbGetAllMetaKeys() {
-  return await idbTx(STORE_METADATA, 'readonly', s => s.getAllKeys());
-}
-
-// ===================== State =====================
-const DATA_KEYS = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
-
-let currentData       = [];
-let uploadVersion     = 1;
-let scanMode          = "";
-let html5Qr           = null;
-let scannerBusy       = false;
-let lastReceivedIndex = null;
-let remarkTimeout;
-let dropdownActiveIndex = -1;
-let activeFilter        = 'all';  // 'all' | 'psent' | 'precvd'
-
-// ===================== Helpers =====================
-function sanitizeId(id) {
-  return String(id || "").replace(/[^a-zA-Z0-9-_]/g, '_');
-}
-
-function generateSearchableText(record) {
-  return DATA_KEYS.map(k => record[k] || "").join(' ').toLowerCase();
-}
-
-function dataKey() {
-  return workDate.value + "_" + uploadVersion;
-}
-
-// ===================== Init =====================
-window.onload = async () => {
-  try {
-    await openDatabase();
-    // Always open on today's date
-    workDate.value = new Date().toISOString().split("T")[0];
-    await loadVersions();
-    await loadCurrentVersion();
-    await loadLocal();
-    updateStorageUsage();
-  } catch(e) {
-    console.error("Init error:", e);
-  }
-};
-
-// ===================== Speech =====================
-function speak(msg) {
-  const s = new SpeechSynthesisUtterance(msg);
-  s.lang = "en-IN";
-  s.rate = 1;
-  speechSynthesis.speak(s);
-}
-
-function speakNextDate(dateStr) {
-  if (!dateStr) return;
-  const d     = new Date(dateStr);
-  const day   = d.getUTCDate();
-  const month = d.toLocaleDateString("en-IN", { month: "long", timeZone: "UTC" });
-  speak("Next date " + day + " " + month);
-}
-
-// ===================== Storage Display =====================
-async function updateStorageUsage() {
-  try {
-    if (navigator.storage && navigator.storage.estimate) {
-      const est    = await navigator.storage.estimate();
-      const usedMB = (est.usage  / 1048576).toFixed(2);
-      const totMB  = (est.quota  / 1048576).toFixed(0);
-      const pct    = ((est.usage / est.quota) * 100).toFixed(1);
-      storageUsage.innerText = usedMB + "MB / " + totMB + "MB (" + pct + "%)";
-    } else {
-      storageUsage.innerText = "IndexedDB";
-    }
-  } catch(e) {
-    storageUsage.innerText = "IndexedDB";
-  }
-}
-
-// ===================== Date Format Helper =====================
-// yyyy-mm-dd  →  dd-mm-yyyy  (display only; storage stays ISO)
-function fmtDate(iso) {
-  if (!iso) return "";
-  const parts = iso.split("-");
-  if (parts.length !== 3) return iso;
-  return parts[2] + "-" + parts[1] + "-" + parts[0];
-}
-
-// ===================== Dashboard =====================
-function updateDashboard() {
-  const total     = currentData.length;
-  const sent      = currentData.filter(x => x.sent     === "Sent").length;
-  const received  = currentData.filter(x => x.received === "Received").length;
-  const pSent     = currentData.filter(x => x.sent     !== "Sent").length;
-  const pRecvd    = currentData.filter(x => x.sent === "Sent" && x.received !== "Received").length;
-
-  totalCount.innerText    = total;
-  sentCount.innerText     = sent;
-  receivedCount.innerText = received;
-
-  // Filter tab counts
-  document.getElementById("tabAllCount").innerText    = total;
-  document.getElementById("tabPSentCount").innerText  = pSent;
-  document.getElementById("tabPRecvdCount").innerText = pRecvd;
-}
-
-// ===================== Filter Tabs =====================
-function setFilter(f) {
-  activeFilter = f;
-
-  // Update tab active styles
-  const tabs = { all: 'active-all', psent: 'active-psent', precvd: 'active-precvd' };
-  ['all','psent','precvd'].forEach(key => {
-    const el = document.getElementById("tab-" + key);
-    el.className = "filter-tab" + (key === f ? " " + tabs[key] : "");
-  });
-
-  // Clear search when switching filter
-  searchBox.value = "";
-  drawTable(getFilteredData());
-}
-
-// ===================== Versions =====================
-async function loadVersions() {
-  versionSelect.innerHTML = "";
-  const versions = await idbGetVersions(workDate.value);
-  if (!versions || versions.length === 0) {
-    versionSelect.innerHTML = '<option value="1">Upload 1</option>';
-    return;
-  }
-  versions.forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.text  = "Upload " + v;
-    versionSelect.appendChild(opt);
-  });
-}
-
-async function saveCurrentVersion() {
-  await idbSetMeta('current_version_' + workDate.value, uploadVersion);
-}
-
-async function loadCurrentVersion() {
-  const v       = await idbGetMeta('current_version_' + workDate.value);
-  uploadVersion = parseInt(v) || 1;
-  versionSelect.value = uploadVersion;
-}
-
-// ===================== Local Save / Load =====================
-async function saveLocal() {
-  try {
-    await idbSetMeta(dataKey(), currentData);
-    // Note: updateStorageUsage() intentionally NOT called here —
-    // calling it on every save (including remark keystrokes) adds unnecessary overhead.
-    // It is called explicitly after upload and delete operations only.
-  } catch(e) {
-    console.error("Save error:", e);
-  }
-}
-
-async function loadLocal() {
-  try {
-    const saved = await idbGetMeta(dataKey());
-    if (saved && Array.isArray(saved)) {
-      currentData = saved;
-      currentData.forEach(r => r.searchableText = generateSearchableText(r));
-    } else {
-      currentData = [];
-    }
-  } catch(e) {
-    console.error("Load error:", e);
-    currentData = [];
-  }
-  drawTable(getFilteredData());
-  updateDashboard();
-}
-
-// ===================== Date / Version Events =====================
-workDate.addEventListener("change", async () => {
-  await loadVersions();
-  await loadCurrentVersion();
-  await loadLocal();
-});
-
-versionSelect.addEventListener("change", async () => {
-  uploadVersion = parseInt(versionSelect.value);
-  await saveCurrentVersion();
-  await loadLocal();
-});
-
-// ===================== Excel Upload =====================
-async function uploadExcel() {
-  const file = excelFile.files[0];
-  if (!file) { alert("Excel file select karo"); return; }
-
-  try {
-    const versions = await idbGetVersions(workDate.value);
-    uploadVersion  = (versions && versions.length > 0 ? versions.length : 0) + 1;
-
-    const reader   = new FileReader();
-    reader.onerror = () => alert("File read error.");
-    reader.onload  = async e => {
-      try {
-        const wb    = XLSX.read(e.target.result, { type: "binary" });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        let rows    = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-        if (rows.length > 0) rows.shift(); // remove header row
-
-        currentData = rows
-          .map(r => {
-            const rec = {
-              srno:         r[0] || "",
-              caseno:       String(r[1] || "").trim(),
-              partyname:    r[2] || "",
-              section:      r[3] || "",
-              ps:           r[4] || "",
-              sent:         "",
-              received:     "",
-              receiveddate: "",
-              nextdate:     "",
-              remark:       ""
-            };
-            rec.searchableText = generateSearchableText(rec);
-            return rec;
-          })
-          .filter(r => r.caseno !== "");
-
-        // Add version option to dropdown
-        const opt = document.createElement("option");
-        opt.value = uploadVersion;
-        opt.text  = "Upload " + uploadVersion;
-        versionSelect.appendChild(opt);
-        versionSelect.value = uploadVersion;
-
-        const newVersions = versions ? [...versions, uploadVersion] : [uploadVersion];
-        await idbSaveVersions(workDate.value, newVersions);
-        await saveCurrentVersion();
-        await saveLocal();
-
-        drawTable(getFilteredData());
-        updateDashboard();
-        speak("Excel uploaded");
-        alert("Excel upload ho gaya! (" + currentData.length + " records)");
-        excelFile.value = "";
-      } catch(err) {
-        console.error("Excel error:", err);
-        alert("Excel process karne mein error: " + err.message);
-      }
-    };
-    reader.readAsBinaryString(file);
-  } catch(err) {
-    console.error("Upload error:", err);
-    alert("Upload fail hua.");
-  }
-}
-
-// ===================== Filter =====================
-function getFilteredData() {
-  const q = searchBox.value.trim().toLowerCase();
-
-  let data = currentData;
-
-  // Apply active tab filter first
-  if (activeFilter === 'psent') {
-    data = data.filter(r => r.sent !== "Sent");
-  } else if (activeFilter === 'precvd') {
-    data = data.filter(r => r.sent === "Sent" && r.received !== "Received");
-  }
-
-  // Then apply search on top
-  if (q) {
-    data = data.filter(r => r.searchableText && r.searchableText.includes(q));
-  }
-
-  return data;
-}
-
-// ===================== Scanner =====================
-function scanSent()     { scanMode = "SENT";     startScanner(); }
-function scanReceived() { scanMode = "RECEIVED"; startScanner(); }
-
-async function startScanner() {
-  scannerBusy = false; // reset for new scan session
-  scanLabel.textContent = scanMode === "SENT"
-    ? "📤 Scanning for SENT..."
-    : "📥 Scanning for RECEIVED...";
-  scannerWrap.style.display = "block";
-
-  html5Qr = new Html5Qrcode("video");
-  try {
-    const devices = await Html5Qrcode.getCameras();
-    if (!devices || !devices.length) {
-      alert("Camera nahi mila.");
-      stopScanner();
-      return;
-    }
-    // Prefer back camera on mobile
-    const cam = devices.find(d => d.label.toLowerCase().includes("back"))
-             || devices[devices.length - 1];
-
-    await html5Qr.start(
-      cam.id,
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      text => handleScan(text.trim())
-    );
-  } catch(err) {
-    console.error("Scanner start error:", err);
-    alert("Camera start nahi hua: " + err);
-    stopScanner();
-  }
-}
-
-function stopScanner() {
-  if (html5Qr) {
-    html5Qr.stop()
-      .then(() => html5Qr.clear())
-      .catch(e => console.warn("Scanner stop warning:", e));
-    html5Qr = null;
-  }
-  scannerBusy = false;
-  scannerWrap.style.display = "none";
-}
-
-async function handleScan(code) {
-  // ── One-scan-per-open: ignore all callbacks after first successful entry ──
-  if (scannerBusy) return;
-
-  if (!code) return;
-
-  const idx = currentData.findIndex(r => r.caseno === code);
-
-  if (idx === -1) {
-    scannerBusy = true;          // lock scanner even on error so it stops
-    stopScanner();
-    alert("❌ File Not Found: " + code);
-    speak("File not found");
-    return;
-  }
-
-  if (scanMode === "SENT") {
-    if (currentData[idx].sent === "Sent") {
-      scannerBusy = true;
-      stopScanner();
-      alert("ℹ️ Already Sent: " + code);
-      speak("Already sent");
-      return;
-    }
-    scannerBusy = true;          // lock — stop accepting more scans
-    stopScanner();               // close scanner immediately
-    currentData[idx].sent = "Sent";
-    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-    speak("File sent");
-    alert("✅ SENT: " + code);
-  }
-
-  else if (scanMode === "RECEIVED") {
-    if (currentData[idx].sent !== "Sent") {
-      scannerBusy = true;
-      stopScanner();
-      alert("❌ File abhi SENT nahi hua: " + code + "\nPehle SEND karo.");
-      speak("File not sent yet");
-      return;
-    }
-    if (currentData[idx].received === "Received") {
-      scannerBusy = true;
-      stopScanner();
-      alert("ℹ️ Already Received: " + code);
-      speak("Already received");
-      return;
-    }
-    scannerBusy = true;          // lock
-    stopScanner();               // close scanner immediately
-    currentData[idx].received     = "Received";
-    currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
-    lastReceivedIndex             = idx;
-    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-    speak("File received");
-    alert("✅ RECEIVED: " + code);
-    nextDatePopup.style.display = "block";
-  }
-
-  searchBox.value = "";
-  drawTable(getFilteredData());
-  scrollToFile(code);
-  updateDashboard();
-  await saveLocal();
-}
-
-// ===================== Scroll & Highlight =====================
-function scrollToFile(caseno) {
-  const row = document.getElementById("row_" + sanitizeId(caseno));
-  if (!row) return;
-  row.scrollIntoView({ behavior: "smooth", block: "center" });
-  row.classList.add("highlight");
-  setTimeout(() => row.classList.remove("highlight"), 4000);
-}
-
-// ===================== Next Date Popup =====================
-async function saveNextDate() {
-  if (lastReceivedIndex === null) return;
-  const selectedDate = nextDateInput.value;
-  if (!selectedDate) { alert("Date select karo"); return; }
-  currentData[lastReceivedIndex].nextdate = selectedDate;
-  currentData[lastReceivedIndex].searchableText = generateSearchableText(currentData[lastReceivedIndex]);
-  nextDateInput.value         = "";
-  nextDatePopup.style.display = "none";
-  lastReceivedIndex           = null;
-  drawTable(getFilteredData());
-  speakNextDate(selectedDate);
-  await saveLocal();
-}
-
-function closePopup() {
-  nextDatePopup.style.display = "none";
-  lastReceivedIndex = null;
-}
-
-// ===================== Remark (debounced) =====================
-async function updateRemark(caseNo, val) {
-  clearTimeout(remarkTimeout);
-  remarkTimeout = setTimeout(async () => {
-    const idx = currentData.findIndex(r => r.caseno === caseNo);
-    if (idx !== -1) {
-      currentData[idx].remark         = val;
-      currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-      await saveLocal();
-    }
-  }, 400);
-}
-
-// ===================== Table =====================
-function drawTable(data) {
-  if (!data || !data.length) { table.innerHTML = ""; return; }
-
-  const HEADERS = ["srno","caseno","partyname","section","ps","sent","received","receiveddate","nextdate","remark"];
-  const LABELS  = ["Sr.No","Case No","Party Name","Section","PS","Sent","Received","Recv. Date","Next Date","Remark"];
-
-  let html = "<tr>" + LABELS.map(x => "<th>" + x + "</th>").join("") + "</tr>";
-
-  data.forEach(r => {
-    let row = '<tr id="row_' + sanitizeId(r.caseno) + '">';
-    HEADERS.forEach(k => {
-      if (k === "remark") {
-        const casenoAttr = String(r.caseno).replace(/"/g, '&quot;');
-        const casenoJs   = String(r.caseno).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const valAttr    = String(r[k] || "").replace(/"/g, '&quot;');
-        row += '<td><input data-caseno="' + casenoAttr
-             + '" value="' + valAttr
-             + '" oninput="updateRemark(\'' + casenoJs + '\',this.value)"'
-             + ' placeholder="Add remark..."></td>';
-      } else if (k === "receiveddate" || k === "nextdate") {
-        // Display as dd-mm-yyyy; stored as yyyy-mm-dd
-        row += '<td>' + fmtDate(r[k]) + '</td>';
-      } else if (k === "sent" && r.sent === "Sent") {
-        row += '<td style="background:#fff3cd">' + (r[k] || "") + '</td>';
-      } else if (k === "received" && r.received === "Received") {
-        row += '<td style="background:#c8e6c9">' + (r[k] || "") + '</td>';
-      } else {
-        row += '<td>' + (r[k] || "") + '</td>';
-      }
-    });
-    row += "</tr>";
-    html += row;
-  });
-
-  table.innerHTML = html;
-
-  // O(1) lookup via Map instead of O(n²) find() inside forEach
-  setTimeout(() => {
-    const active     = document.activeElement;
-    const activeCase = (active && active.dataset && active.dataset.caseno)
-                       ? active.dataset.caseno : null;
-    const cursorPos  = activeCase ? active.selectionStart : null;
-
-    // Build a quick lookup map once — O(n) instead of O(n²)
-    const remarkMap = new Map(currentData.map(r => [r.caseno, r.remark || ""]));
-
-    document.querySelectorAll('input[data-caseno]').forEach(input => {
-      const remark = remarkMap.get(input.dataset.caseno);
-      if (remark === undefined) return;
-      if (activeCase && input.dataset.caseno === activeCase) {
-        if (input.value !== remark) input.value = remark;
-        if (cursorPos != null) {
-          try { input.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
-        }
-        input.focus();
-      } else {
-        input.value = remark;
-      }
-    });
-  }, 0);
-}
-
-// ===================== Search (debounced 150ms) =====================
-let searchDebounce;
-searchBox.addEventListener("input", () => {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => drawTable(getFilteredData()), 150);
-});
-
-// ===================== Manual Entry =====================
-function showManualStatus(msg, type) {
-  const el = document.getElementById("manualStatus");
-  el.textContent = msg;
-  el.className   = "manual-status " + type;
-  clearTimeout(el._timer);
-  if (type === "success") {
-    el._timer = setTimeout(() => { el.className = "manual-status"; }, 3000);
-  }
-}
-
-function onManualInput() {
-  const val = manualCaseInput.value.trim().toLowerCase();
-  dropdownActiveIndex = -1;
-  if (!val || !currentData.length) { closeCaseDropdown(); return; }
-
-  const matches = currentData.filter(r =>
-    String(r.caseno).toLowerCase().includes(val) ||
-    String(r.partyname).toLowerCase().includes(val)
-  ).slice(0, 20);
-
-  if (!matches.length) { closeCaseDropdown(); return; }
-
-  const dd = document.getElementById("caseDropdown");
-  dd.innerHTML = matches.map(r => {
-    const cn      = String(r.caseno).replace(/"/g, '&quot;');
-    const cnJs    = String(r.caseno).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const party   = (r.partyname || "") + (r.section ? " | " + r.section : "");
-    return `<div class="drop-item" data-caseno="${cn}" onmousedown="selectDropItem('${cnJs}')">
-              <span class="drop-caseno">${r.caseno}</span>
-              <span class="drop-party">${party}</span>
-            </div>`;
-  }).join("");
-  dd.style.display = "block";
-}
-
-function onManualKeyDown(e) {
-  const dd    = document.getElementById("caseDropdown");
-  const items = dd.querySelectorAll(".drop-item");
-  if (!items.length) return;
-
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    dropdownActiveIndex = Math.min(dropdownActiveIndex + 1, items.length - 1);
-    updateDropHighlight(items);
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
-    dropdownActiveIndex = Math.max(dropdownActiveIndex - 1, 0);
-    updateDropHighlight(items);
-  } else if (e.key === "Enter") {
-    e.preventDefault();
-    if (dropdownActiveIndex >= 0 && items[dropdownActiveIndex]) {
-      selectDropItem(items[dropdownActiveIndex].dataset.caseno);
-    }
-  } else if (e.key === "Escape") {
-    closeCaseDropdown();
-  }
-}
-
-function updateDropHighlight(items) {
-  items.forEach((el, i) => {
-    el.classList.toggle("active", i === dropdownActiveIndex);
-    if (i === dropdownActiveIndex) el.scrollIntoView({ block: "nearest" });
-  });
-}
-
-function selectDropItem(caseno) {
-  manualCaseInput.value = caseno;
-  closeCaseDropdown();
-  document.getElementById("manualStatus").className = "manual-status";
-}
-
-function closeCaseDropdown() {
-  document.getElementById("caseDropdown").style.display = "none";
-  dropdownActiveIndex = -1;
-}
-
-document.addEventListener("click", e => {
-  if (!e.target.closest(".case-dropdown-wrap")) closeCaseDropdown();
-});
-
-async function manualAction(mode) {
-  const caseNo = manualCaseInput.value.trim();
-  if (!caseNo) { showManualStatus("⚠️ Pehle Case No enter karo.", "error"); return; }
-  if (!currentData.length) { showManualStatus("⚠️ Koi data nahi. Pehle Excel upload karo.", "error"); return; }
-
-  const idx = currentData.findIndex(r => String(r.caseno).trim() === caseNo);
-  if (idx === -1) {
-    showManualStatus("❌ Case Not Found: " + caseNo, "error");
-    speak("Case not found");
-    return;
-  }
-
-  const rec = currentData[idx];
-
-  if (mode === "SENT") {
-    if (rec.sent === "Sent") {
-      showManualStatus("ℹ️ Yeh file pehle se SENT hai: " + caseNo, "info");
-      speak("Already sent");
-      return;
-    }
-    currentData[idx].sent = "Sent";
-    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-    showManualStatus("✅ SENT ho gaya: " + caseNo, "success");
-    speak("File sent");
-    manualCaseInput.value = "";
-
-  } else if (mode === "RECEIVED") {
-    if (rec.sent !== "Sent") {
-      showManualStatus("❌ Yeh file abhi SENT nahi hua. Pehle SEND karo.", "error");
-      speak("File not sent yet");
-      return;
-    }
-    if (rec.received === "Received") {
-      showManualStatus("ℹ️ Yeh file pehle se RECEIVED hai: " + caseNo, "info");
-      speak("Already received");
-      return;
-    }
-    currentData[idx].received     = "Received";
-    currentData[idx].receiveddate = new Date().toISOString().split("T")[0];
-    lastReceivedIndex             = idx;
-    currentData[idx].searchableText = generateSearchableText(currentData[idx]);
-    showManualStatus("✅ RECEIVED ho gaya: " + caseNo, "success");
-    speak("File received");
-    manualCaseInput.value = "";
-    nextDatePopup.style.display = "block";
-  }
-
-  drawTable(getFilteredData());
-  scrollToFile(caseNo);
-  updateDashboard();
-  await saveLocal();
-}
-
-// ===================== Download Excel =====================
-function downloadExcel() {
-  if (!currentData.length) { alert("Data nahi hai download karne ke liye."); return; }
-  const exportData = currentData.map(r => ({
-    "Sr.No":      r.srno,
-    "Case No":    r.caseno,
-    "Party Name": r.partyname,
-    "Section":    r.section,
-    "PS":         r.ps,
-    "Sent":       r.sent,
-    "Received":   r.received,
-    "Recv. Date": r.receiveddate,
-    "Next Date":  r.nextdate,
-    "Remark":     r.remark
-  }));
-  const ws = XLSX.utils.json_to_sheet(exportData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Court Data");
-  XLSX.writeFile(wb, "Court_" + workDate.value + "_v" + uploadVersion + ".xlsx");
-}
-
-// ===================== Delete Old Data =====================
-async function deleteOldData() {
-  if (!confirm("60 din se purana data delete karein?")) return;
-
-  const today = new Date();
-  let count   = 0;
-
-  try {
-    // 1. Get all metadata keys, delete old ones (each in its own transaction)
-    const metaKeys = await idbGetAllMetaKeys();
-    for (const key of metaKeys) {
-      if (key.startsWith('current_version_')) continue;
-      const datePart = key.substring(0, 10);
-      const fileDate = new Date(datePart);
-      if (!isNaN(fileDate) && (today - fileDate) / 86400000 > 60) {
-        await idbDelMeta(key);
-        count++;
-      }
-    }
-
-    // 2. Get all version date keys, delete old ones
-    const allDates = await idbGetAllVersionKeys();
-    for (const dateKey of allDates) {
-      const fileDate = new Date(dateKey);
-      if (!isNaN(fileDate) && (today - fileDate) / 86400000 > 60) {
-        await idbDeleteVersionDate(dateKey);
-      }
-    }
-
-    alert(count + " purane records delete ho gaye.");
-    updateStorageUsage();
-  } catch(err) {
-    console.error("Delete error:", err);
-    alert("Delete fail hua.");
-  }
-}
-
-// ===================== Backup — Export =====================
-async function exportBackup() {
-  const statusEl = document.getElementById("backupStatus");
-  try {
-    // Collect all version records
-    const allVersionKeys = await idbGetAllVersionKeys();
-    const versionsData   = {};
-    for (const dateKey of allVersionKeys) {
-      const result = await idbTx(STORE_VERSIONS, 'readonly', s => s.get(dateKey));
-      if (result) versionsData[dateKey] = result.versions;
-    }
-
-    // Collect all metadata records (skip nothing — includes data + current_version keys)
-    const allMetaKeys = await idbGetAllMetaKeys();
-    const metaData    = {};
-    for (const key of allMetaKeys) {
-      const val = await idbGetMeta(key);
-      if (val !== null) metaData[key] = val;
-    }
-
-    const backup = {
-      exportedAt:   new Date().toISOString(),
-      appVersion:   "1.0",
-      versionsStore: versionsData,
-      metadataStore: metaData
-    };
-
-    const json     = JSON.stringify(backup, null, 2);
-    const blob     = new Blob([json], { type: "application/json" });
-    const url      = URL.createObjectURL(blob);
-    const a        = document.createElement("a");
-    const dateStr  = new Date().toISOString().split("T")[0];
-    a.href         = url;
-    a.download     = "CourtFileManager_Backup_" + dateStr + ".json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    statusEl.textContent = "✅ Backup export ho gaya!";
-    statusEl.className   = "manual-status success";
-    clearTimeout(statusEl._timer);
-    statusEl._timer = setTimeout(() => { statusEl.className = "manual-status"; }, 3000);
-
-  } catch(err) {
-    console.error("Export error:", err);
-    statusEl.textContent = "❌ Export fail hua: " + err;
-    statusEl.className   = "manual-status error";
-  }
-}
-
-// ===================== Backup — Import / Restore =====================
-async function importBackup(event) {
-  const statusEl = document.getElementById("backupStatus");
-  const file     = event.target.files[0];
-  event.target.value = ""; // reset so same file can be picked again
-  if (!file) return;
-
-  if (!confirm("⚠️ Restore karne se SAARA existing data replace ho jaayega.\nKya aap sure hain?")) return;
-
-  const reader      = new FileReader();
-  reader.onerror    = () => {
-    statusEl.textContent = "❌ File read error.";
-    statusEl.className   = "manual-status error";
-  };
-  reader.onload = async e => {
-    try {
-      const backup = JSON.parse(e.target.result);
-
-      // Basic validation
-      if (!backup.versionsStore || !backup.metadataStore) {
-        statusEl.textContent = "❌ Invalid backup file.";
-        statusEl.className   = "manual-status error";
-        return;
-      }
-
-      // ── Restore versions store ──
-      for (const [dateKey, versions] of Object.entries(backup.versionsStore)) {
-        await idbTx(STORE_VERSIONS, 'readwrite', s => s.put({ workDate: dateKey, versions }));
-      }
-
-      // ── Restore metadata store ──
-      for (const [key, value] of Object.entries(backup.metadataStore)) {
-        await idbSetMeta(key, value);
-      }
-
-      statusEl.textContent = "✅ Restore ho gaya! App reload ho rahi hai...";
-      statusEl.className   = "manual-status success";
-
-      // Reload app to reflect restored data
-      setTimeout(() => location.reload(), 1500);
-
-    } catch(err) {
-      console.error("Import error:", err);
-      statusEl.textContent = "❌ Restore fail hua: " + err.message;
-      statusEl.className   = "manual-status error";
-    }
-  };
-  reader.readAsText(file);
-}
+function itemHTML(it,i,count){
+  const mark={yes:'✓',no:'✕',na:'—'}[it.status]||'';
+  return `<div class="item" data-i="${i}" data-key="${esc(it.key)}">
+    <button class="ihead"><span class="dot ${it.status}">${mark}</span>
+      <span class="iname">${esc(it.name)} ${it.sub?`<span class="isub">${esc(it.sub)}</span>`:''}
+        <span class="isub pgLbl">${it.pages?'पृ. '+esc(it.pages):''}</span>
+        <span class="isub natLbl">${it.nat?'नत्थी '+esc(it.nat):''}</span></span>
+      ${count?`<span class="pin">📷 ${count}</span>`:''}</button>
+    <div class="ibody hide">
+      <div class="seg" style="margin:10px 0 9px">
+        <button data-v="yes" class="${it.status==='yes'?'on':''}">है</button>
+        <button data-v="no" class="${it.status==='no'?'on':''}">नहीं है</button>
+        <button data-v="na" class="${it.status==='na'?'on':''}">लागू नहीं</button></div>
+      <label class="f">नत्थी</label>
+      <div class="seg natseg mb8"><button data-v="अ" class="${it.nat==='अ'?'on':''}">नत्थी अ</button>
+        <button data-v="ब" class="${it.nat==='ब'?'on':''}">नत्थी ब</button></div>
+      <div class="row mb8"><div><label class="f">पृष्ठ</label><input type="text" data-fld="pages" value="${esc(it.pages)}" placeholder="12–17"></div>
+        <div style="flex:2"><label class="f">टिप्पणी</label><input type="text" data-fld="note" value="${esc(it.note)}"></div></div>
+      <div class="shots" data-shots>
+        <button class="addshot" data-src="cam"><span>📷</span>कैमरा</button>
+        <button class="addshot" data-src="gal"><span>🖼</span>गैलरी</button></div>
+      <div class="noprint" style="text-align:right;margin-top:8px">
+        <button class="btn danger rmItem" style="font-size:12px;padding:6px 10px">पंक्ति हटाएँ</button></div>
+    </div></div>`}
+
+/* thumbnails sirf khuli hui pankti ke — band karte hi memory chhod di jaati hai */
+function freeItem(itemEl){itemEl.querySelectorAll('.shot img').forEach(im=>{URL.revokeObjectURL(im.src);im.src=''});
+  itemEl.querySelectorAll('.shot').forEach(s=>s.remove())}
+async function loadThumbs(itemEl,key){
+  const box=itemEl.querySelector('[data-shots]'),first=box.querySelector('.addshot');
+  freeItem(itemEl);
+  const ids=await photoKeys(cur.id,key);
+  for(let n=0;n<ids.length;n++){const p=await getPhoto(ids[n]);if(!p)continue;
+    const b=document.createElement('button');b.className='shot';b.dataset.n=n;
+    b.innerHTML=`<img alt=""><b>${n+1}</b>`;b.querySelector('img').src=URL.createObjectURL(p.thumb);
+    box.insertBefore(b,first)}
+  const head=itemEl.querySelector('.ihead'),pin=head.querySelector('.pin');
+  if(ids.length){pin?pin.textContent='📷 '+ids.length:head.insertAdjacentHTML('beforeend',`<span class="pin">📷 ${ids.length}</span>`)}
+  else if(pin)pin.remove()}
+
+/* ---------- camera / gallery ---------- */
+let pickIndex=null;
+const pickFor=(i,src)=>{pickIndex=i;const el=src==='gal'?$('#pickerGal'):$('#picker');el.value='';el.click()};
+async function ingest(files){
+  if(!files.length||pickIndex===null||!cur)return;
+  const key=cur.items[pickIndex].key;toast(files.length+' फोटो सहेजी जा रही…');
+  let ok=0;
+  for(const file of files){try{const{full,thumb}=await shrink(file);
+    await putPhoto({id:uid(),fileId:cur.id,itemKey:key,full,thumb,ts:Date.now()});ok++}
+    catch(err){console.warn(err)}}
+  const el=document.querySelector(`.item[data-i="${pickIndex}"]`);if(el)loadThumbs(el,key);
+  toast(ok?ok+' फोटो सहेजी गई':'फोटो नहीं खुली — गैलरी से जोड़कर देखें')}
+$('#picker').onchange=e=>ingest([...e.target.files]);
+$('#pickerGal').onchange=e=>ingest([...e.target.files]);
+
+/* ---------- viewer ---------- */
+let vIds=[],vN=0,vKey=null,vItem=null,vURL=null;
+async function openViewer(i,n){vItem=i;vKey=cur.items[i].key;vIds=await photoKeys(cur.id,vKey);vN=n;
+  $('#vLabel').textContent=cur.items[i].name;$('#viewer').classList.add('on');showV()}
+async function showV(){if(!vIds.length)return closeViewer();
+  vN=(vN+vIds.length)%vIds.length;const p=await getPhoto(vIds[vN]);
+  if(vURL)URL.revokeObjectURL(vURL);vURL=URL.createObjectURL(p.full);
+  $('#vImg').src=vURL;$('#vCount').textContent=(vN+1)+' / '+vIds.length}
+function closeViewer(){$('#viewer').classList.remove('on');$('#vImg').src='';if(vURL){URL.revokeObjectURL(vURL);vURL=null}}
+$('#vClose').onclick=closeViewer;$('#vNext').onclick=()=>{vN++;showV()};$('#vPrev').onclick=()=>{vN--;showV()};
+$('#vDel').onclick=async()=>{if(!await ask({title:'फोटो हटाएँ?',ok:'हटाएँ',danger:1}))return;
+  await delPhoto(vIds[vN]);vIds.splice(vN,1);
+  const el=document.querySelector(`.item[data-i="${vItem}"]`);if(el)loadThumbs(el,vKey);showV()};
+
+/* ---------- QR scanner ---------- */
+let scanStream=null,scanStop=false,onCode=null;
+async function startScan(cb){
+  onCode=cb;scanStop=false;$('#scan').classList.add('on');$('#scanMsg').textContent='फाइल के लेबल का QR कैमरे के सामने रखें';
+  const v=$('#scanVid');
+  try{scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});
+    v.srcObject=scanStream;await v.play()}
+  catch(e){$('#scanMsg').textContent='कैमरा नहीं खुला — नीचे "कोड टाइप करें" दबाएँ';return}
+  if(!('BarcodeDetector' in window)){$('#scanMsg').textContent='इस डिवाइस में QR रीडर नहीं — कोड टाइप करें';return}
+  const det=new BarcodeDetector({formats:['qr_code','code_128','ean_13']});
+  const loop=async()=>{
+    if(scanStop)return;
+    try{const codes=await det.detect(v);
+      if(codes.length){const val=codes[0].rawValue.trim();stopScan();navigator.vibrate&&navigator.vibrate(60);
+        return onCode&&onCode(val)}}catch(e){}
+    setTimeout(loop,260)};
+  loop()}
+function stopScan(){scanStop=true;$('#scan').classList.remove('on');
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}$('#scanVid').srcObject=null}
+$('#scanClose').onclick=()=>{stopScan();onCode=null};
+$('#scanManual').onclick=async()=>{stopScan();
+  const v=await ask({title:'लेबल कोड',input:'कोड / मुकदमा संख्या',ok:'खोजें'});
+  if(v&&onCode)onCode(v)};
+
+async function scanToOpen(){
+  startScan(async code=>{
+    const hit=await findByCode(code);
+    if(hit){toast('फाइल मिली');return openCase(hit.id)}
+    const mk=await ask({title:'कोई फाइल नहीं मिली',msg:'कोड: '+code+' — इसी कोड से नई फाइल बनाएँ?',ok:'नई फाइल बनाएँ'});
+    if(!mk)return;
+    const f=blankFile();f.qr=code;if(/^\d{1,6}$/.test(code))f.caseNo=code;
+    await saveFile(f);openCase(f.id)})}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  view='set';setHead('सेटिंग','न्यायालय व बैकअप',true);
+  $('#fabs').classList.add('hide');$('#printHead').innerHTML='';
+  app.innerHTML=`<div class="card"><div class="card-pad">
+    <div class="mb8"><label class="f">न्यायालय का नाम</label>
+      <input type="text" id="sCourt" value="${esc(SET.court)}" placeholder="जैसे — न्यायालय ए.सी.जे.एम. संख्या 15, बागपत"></div>
+    <div class="mb8"><label class="f">पीठासीन अधिकारी / पदनाम</label><input type="text" id="sOfficer" value="${esc(SET.officer)}"></div>
+    <label class="f">नई पंक्ति की डिफ़ॉल्ट नत्थी</label>
+    <div class="seg" id="sNat"><button data-v="अ" class="${SET.defNat==='अ'?'on':''}">अ</button><button data-v="ब" class="${SET.defNat==='ब'?'on':''}">ब</button></div>
+    <button class="btn solid" id="sSave" style="width:100%;margin-top:12px">सेटिंग सहेजें</button></div></div>
+  <div class="eyebrow">डेटा</div>
+  <div class="card"><div class="card-pad">
+    <div class="row mb8"><button class="btn" id="sBackup">बैकअप सहेजें</button><button class="btn" id="sRestore">बैकअप से जोड़ें</button></div>
+    <div id="usage" style="font-size:13px;color:var(--ink-2)"></div>
+    <p style="font-size:12.5px;margin:10px 0 0">बैकअप में केवल फाइल-विवरण जाता है। फोटो फोन के अंदर ही रहती हैं।</p></div></div>`;
+  $('#sNat').onclick=e=>{const b=e.target.closest('button');if(!b)return;SET.defNat=b.dataset.v;
+    $('#sNat').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};
+  $('#sSave').onclick=()=>{SET.court=$('#sCourt').value.trim();SET.officer=$('#sOfficer').value.trim();S.set(SET);toast('सेटिंग सहेज ली');renderList()};
+  $('#sBackup').onclick=backup;$('#sRestore').onclick=()=>$('#restorePick').click();
+  (async()=>{const q=await(navigator.storage?.estimate?.()||Promise.resolve(null));
+    const nf=await req(tx('idx').count()),np=await req(tx('photos').count());
+    $('#usage').textContent=`${nf} फाइल · ${np} फोटो · ${q?(q.usage/1048576).toFixed(1)+' MB प्रयुक्त':''}`})()}
+
+/* ---------- backup ---------- */
+function allFilesFull(){return new Promise(res=>{const out=[];const r=tx('files').openCursor();
+  r.onsuccess=e=>{const c=e.target.result;if(!c)return res(out);out.push(c.value);c.continue()}})}
+async function backup(){
+  const files=await allFilesFull();
+  const blob=new Blob([JSON.stringify({v:2,court:SET.court,exportedAt:new Date().toISOString(),files})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='natthi-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);toast(files.length+' फाइल का बैकअप डाउनलोड हुआ')}
+$('#restorePick').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;
+  try{const d=JSON.parse(await fl.text()),arr=d.files||[];
+    await new Promise((res,rej)=>{const t=db.transaction(['files','idx'],'readwrite');
+      arr.forEach(x=>{if(!x.items)x.items=newItems();t.objectStore('files').put(x);t.objectStore('idx').put(idxOf(x))});
+      t.oncomplete=res;t.onerror=()=>rej(t.error)});
+    toast(arr.length+' फाइल जोड़ी गईं');renderList()}
+  catch(err){toast('यह बैकअप फाइल पढ़ी नहीं जा सकी')}};
+
+/* index rebuild (purane data ke liye) */
+async function ensureIdx(){
+  const ni=await req(tx('idx').count()),nf=await req(tx('files').count());
+  if(ni>=nf)return;
+  const all=await allFilesFull();
+  await new Promise(res=>{const t=db.transaction('idx','readwrite');
+    all.forEach(f=>t.objectStore('idx').put(idxOf(f)));t.oncomplete=res})}
+
+$('#btnBack').onclick=renderList;
+$('#btnSet').onclick=()=>view==='set'?renderList():renderSettings();
+$('#fab').onclick=async()=>{const f=blankFile();await saveFile(f);openCase(f.id)};
+$('#fabScan').onclick=scanToOpen;
+openDB().then(async()=>{await ensureIdx();navigator.storage?.persist?.();renderList()})
+  .catch(e=>{app.innerHTML='<div class="empty"><b>संग्रहण नहीं खुला</b>'+e+'</div>'});
 </script>
 </body>
 </html>
